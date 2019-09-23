@@ -1,0 +1,44 @@
+{
+    "name": "nails/module-subscription",
+    "keywords": [
+        "Nails",
+        "Shed Collective",
+        "CodeIgniter",
+        "Subscription Module",
+        "Subscription"
+    ],
+    "homepage": "http://nailsapp.co.uk/modules/subscription",
+    "description": "This is the \"Subscription\" module for Nails.",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Pablo de la Pena",
+            "email": "p@nailsapp.co.uk",
+            "homepage": "http://nailsapp.co.uk",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "email": "hello@nailsapp.co.uk"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {
+        "nails/common": "dev-develop",
+        "nails/module-cdn": "dev-develop"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "8.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nails\\Subscription\\": "src/"
+        }
+    },
+    "extra": {
+        "nails": {
+            "moduleName": "subscription",
+            "type": "module"
+        }
+    }
+}
