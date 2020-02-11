@@ -12,6 +12,7 @@
 
 namespace Nails\Subscription\Model;
 
+use Nails\Common\Exception\ModelException;
 use Nails\Common\Model\Base;
 use Nails\Subscription\Constants;
 
@@ -42,4 +43,24 @@ class Package extends Base
      * @var string
      */
     const RESOURCE_PROVIDER = Constants::MODULE_SLUG;
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Package constructor.
+     *
+     * @throws ModelException
+     */
+    public function __construct()
+    {
+        parent::__construct();
+        $this
+            ->addExpandableField([
+                'trigger'   => 'costs',
+                'model'     => 'PackageCost',
+                'provider'  => Constants::MODULE_SLUG,
+                'type'      => static::EXPANDABLE_TYPE_MANY,
+                'id_column' => 'package_id',
+            ]);
+    }
 }

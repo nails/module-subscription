@@ -12,7 +12,9 @@
 
 namespace Nails\Subscription\Model;
 
+use Nails\Common\Exception\ModelException;
 use Nails\Common\Model\Base;
+use Nails\Invoice;
 use Nails\Subscription\Constants;
 
 /**
@@ -42,4 +44,29 @@ class Instance extends Base
      * @var string
      */
     const RESOURCE_PROVIDER = Constants::MODULE_SLUG;
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Instance constructor.
+     *
+     * @throws ModelException
+     */
+    public function __construct()
+    {
+        parent::__construct();
+        $this
+            ->addExpandableField([
+                'trigger'   => 'customer',
+                'model'     => 'Customer',
+                'provider'  => Invoice\Constants::MODULE_SLUG,
+                'id_column' => 'customer_id',
+            ])
+            ->addExpandableField([
+                'trigger'   => 'package',
+                'model'     => 'Package',
+                'provider'  => Constants::MODULE_SLUG,
+                'id_column' => 'package_id',
+            ]);
+    }
 }
