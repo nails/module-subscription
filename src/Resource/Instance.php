@@ -12,7 +12,9 @@
 
 namespace Nails\Subscription\Resource;
 
+use Nails\Common\Resource\DateTime;
 use Nails\Common\Resource\Entity;
+use Nails\Invoice\Resource\Customer;
 
 /**
  * Class Instance
@@ -21,4 +23,36 @@ use Nails\Common\Resource\Entity;
  */
 class Instance extends Entity
 {
+    /** @var int */
+    public $customer_id;
+
+    /** @var Customer */
+    public $customer;
+
+    /** @var int */
+    public $package_id;
+
+    /** @var Package */
+    public $package;
+
+    /** @var DateTime */
+    public $date_free_trial_start;
+
+    /** @var DateTime */
+    public $date_free_trial_end;
+
+    /** @var DateTime */
+    public $date_subscription_start;
+
+    /** @var DateTime */
+    public $date_subscription_end;
+
+    /** @var DateTime */
+    public $date_cooling_off_start;
+
+    /** @var DateTime */
+    public $date_cooling_off_end;
+
+    /** @var bool */
+    public $is_automatic_renew;
 }
