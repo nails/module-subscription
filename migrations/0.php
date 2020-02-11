@@ -55,6 +55,7 @@ class Migration0 extends Base
             CREATE TABLE `{{NAILS_DB_PREFIX}}subscription_package` (
                 `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
                 `label` varchar(150) DEFAULT NULL,
+                `description` longtext,
                 `billing_period` enum(\'DAY\',\'MONTH\',\'YEAR\') DEFAULT NULL,
                 `billing_duration` int(11) unsigned NOT NULL DEFAULT 1,
                 `is_active` tinyint(1) unsigned NOT NULL DEFAULT 1,
