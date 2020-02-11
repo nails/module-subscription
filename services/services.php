@@ -5,21 +5,21 @@ use Nails\Subscription\Resource;
 
 return [
     'models'    => [
-        'Instance'    => function () {
+        'Instance'    => function (): Model\Instance {
             if (class_exists('\App\Subscription\Model\Instance')) {
                 return new \App\Subscription\Model\Instance();
             } else {
                 return new Model\Instance();
             }
         },
-        'Package'     => function () {
+        'Package'     => function (): Model\Package {
             if (class_exists('\App\Subscription\Model\Package')) {
                 return new \App\Subscription\Model\Package();
             } else {
                 return new Model\Package();
             }
         },
-        'PackageCost' => function () {
+        'PackageCost' => function (): Model\Package\Cost {
             if (class_exists('\App\Subscription\Model\Package\Cost')) {
                 return new \App\Subscription\Model\Package\Cost();
             } else {
@@ -28,21 +28,21 @@ return [
         },
     ],
     'resources' => [
-        'Instance'    => function ($mObj) {
+        'Instance'    => function ($mObj): Resource\Instance {
             if (class_exists('\App\Subscription\Resource\Instance')) {
                 return new \App\Subscription\Resource\Instance($mObj);
             } else {
                 return new Resource\Instance($mObj);
             }
         },
-        'Package'     => function ($mObj) {
+        'Package'     => function ($mObj): Resource\Package {
             if (class_exists('\App\Subscription\Resource\Package')) {
                 return new \App\Subscription\Resource\Package($mObj);
             } else {
                 return new Resource\Package($mObj);
             }
         },
-        'PackageCost' => function ($mObj) {
+        'PackageCost' => function ($mObj): Resource\Package\Cost {
             if (class_exists('\App\Subscription\Resource\Package\Cost')) {
                 return new \App\Subscription\Resource\Package\Cost($mObj);
             } else {
