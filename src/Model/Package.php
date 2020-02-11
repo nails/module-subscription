@@ -44,6 +44,15 @@ class Package extends Base
      */
     const RESOURCE_PROVIDER = Constants::MODULE_SLUG;
 
+    /**
+     * The supported billing periods
+     *
+     * @var string
+     */
+    const BILLING_PERIOD_DAY   = 'DAY';
+    const BILLING_PERIOD_MONTH = 'MONTH';
+    const BILLING_PERIOD_YEAR  = 'YEAR';
+
     // --------------------------------------------------------------------------
 
     /**
@@ -62,5 +71,21 @@ class Package extends Base
                 'type'      => static::EXPANDABLE_TYPE_MANY,
                 'id_column' => 'package_id',
             ]);
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns the supported billing periods
+     *
+     * @return string[]
+     */
+    public function getBillingPeriods(): array
+    {
+        return [
+            static::BILLING_PERIOD_DAY   => 'Day',
+            static::BILLING_PERIOD_MONTH => 'Month',
+            static::BILLING_PERIOD_YEAR  => 'Year',
+        ];
     }
 }
