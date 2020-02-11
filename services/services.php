@@ -2,8 +2,18 @@
 
 use Nails\Subscription\Model;
 use Nails\Subscription\Resource;
+use Nails\Subscription\Service;
 
 return [
+    'services'  => [
+        'Subscription' => function (): Service\Subscription {
+            if (class_exists('\App\Subscription\Service\Subscription')) {
+                return new \App\Subscription\Service\Subscription();
+            } else {
+                return new Service\Subscription();
+            }
+        },
+    ],
     'models'    => [
         'Instance'    => function (): Model\Instance {
             if (class_exists('\App\Subscription\Model\Instance')) {
