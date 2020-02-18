@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Subscription exception
+ * AlreadySubscribedException exception
  *
  * @package     Nails
  * @subpackage  module-subscription
@@ -12,14 +12,11 @@
 
 namespace Nails\Subscription\Exception;
 
-use Nails\Common\Exception\NailsException;
-
 /**
- * Class SubscriptionException
+ * Class AlreadySubscribedException
  *
  * @package Nails\Subscription\Exception
  */
-class SubscriptionException extends NailsException
+class AlreadySubscribedException extends SubscriptionException
 {
-    const DOCUMENTATION_URL = 'https://docs.nailsapp.co.uk/modules/subscription';
 }

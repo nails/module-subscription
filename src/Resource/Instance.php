@@ -12,9 +12,13 @@
 
 namespace Nails\Subscription\Resource;
 
+use Nails\Common\Exception\FactoryException;
+use Nails\Common\Exception\ModelException;
 use Nails\Common\Resource\DateTime;
 use Nails\Common\Resource\Entity;
-use Nails\Invoice\Resource\Customer;
+use Nails\Factory;
+use Nails\Invoice;
+use Nails\Subscription;
 
 /**
  * Class Instance
@@ -26,7 +30,7 @@ class Instance extends Entity
     /** @var int */
     public $customer_id;
 
-    /** @var Customer */
+    /** @var Invoice\Resource\Customer */
     public $customer;
 
     /** @var int */
@@ -34,6 +38,18 @@ class Instance extends Entity
 
     /** @var Package */
     public $package;
+
+    /** @var int */
+    public $source_id;
+
+    /** @var Invoice\Resource\Source */
+    public $source;
+
+    /** @var int */
+    public $invoice_id;
+
+    /** @var Invoice\Resource\Invoice */
+    public $invoice;
 
     /** @var DateTime */
     public $date_free_trial_start;
@@ -55,4 +71,92 @@ class Instance extends Entity
 
     /** @var bool */
     public $is_automatic_renew;
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns the instance's customer
+     *
+     * @return Invoice\Resource\Customer|null
+     * @throws FactoryException
+     * @throws ModelException
+     */
+    public function customer(): ?Invoice\Resource\Customer
+    {
+        if (!$this->customer && $this->customer_id) {
+
+            /** @var Invoice\Model\Customer $oModel */
+            $oModel = Factory::model('Customer', Invoice\Constants::MODULE_SLUG);
+
+            $this->customer = $oModel->getById($this->customer_id);
+        }
+
+        return $this->customer;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns the instance's package
+     *
+     * @return Invoice\Resource\Package|null
+     * @throws FactoryException
+     * @throws ModelException
+     */
+    public function package(): ?Invoice\Resource\Package
+    {
+        if (!$this->package && $this->package_id) {
+
+            /** @var Subscription\Model\Package $oModel */
+            $oModel = Factory::model('Package', Subscription\Constants::MODULE_SLUG);
+
+            $this->package = $oModel->getById($this->package_id);
+        }
+
+        return $this->package;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns the instance's payment source
+     *
+     * @return Invoice\Resource\Source|null
+     * @throws FactoryException
+     * @throws ModelException
+     */
+    public function source(): ?Invoice\Resource\Source
+    {
+        if (!$this->source && $this->source_id) {
+
+            /** @var Invoice\Model\Source $oModel */
+            $oModel = Factory::model('Source', Invoice\Constants::MODULE_SLUG);
+
+            $this->source = $oModel->getById($this->source_id);
+        }
+
+        return $this->source;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns the instance's invoice
+     *
+     * @return Invoice\Resource\Invoice|null
+     * @throws FactoryException
+     * @throws ModelException
+     */
+    public function invoice(): ?Invoice\Reinvoice\Invoice
+    {
+        if (!$this->invoice && $this->invoice_id) {
+
+            /** @var Invoice\Model\Invoice $oModel */
+            $oModel = Factory::model('Invoice', Invoice\Constants::MODULE_SLUG);
+
+            $this->invoice = $oModel->getById($this->invoice_id);
+        }
+
+        return $this->invoice;
+    }
 }

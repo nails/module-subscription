@@ -12,9 +12,14 @@
 
 namespace Nails\Subscription\Resource;
 
+use Nails\Common\Exception\FactoryException;
+use Nails\Common\Exception\ModelException;
+use Nails\Common\Helper\Model\Expand;
 use Nails\Common\Resource\DateTime;
 use Nails\Common\Resource\Entity;
 use Nails\Common\Resource\ExpandableField;
+use Nails\Factory;
+use Nails\Subscription\Model\Package\Cost;
 
 /**
  * Class Package
@@ -58,4 +63,33 @@ class Package extends Entity
 
     /** @var ExpandableField */
     public $costs;
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns the package's costs
+     *
+     * @return ExpandableField
+     * @throws FactoryException
+     * @throws ModelException
+     */
+    public function costs(): ExpandableField
+    {
+        if (!$this->costs) {
+
+            $this->package = new ExpandableField();
+
+            /** @var Cost $oModel */
+            $oModel              = Factory::model('PackageCost', Subscription\Constants::MODULE_SLUG);
+            $this->package->data = $oModel->getAll([
+                'where' => [
+                    ['package_id', $this->id],
+                ],
+            ]);
+
+            $this->package->count = count($this->package->data);
+        }
+
+        return $this->costs;
+    }
 }

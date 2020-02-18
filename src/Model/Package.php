@@ -13,6 +13,7 @@
 namespace Nails\Subscription\Model;
 
 use Nails\Common\Exception\ModelException;
+use Nails\Common\Helper\Date;
 use Nails\Common\Model\Base;
 use Nails\Subscription\Constants;
 
@@ -49,9 +50,9 @@ class Package extends Base
      *
      * @var string
      */
-    const BILLING_PERIOD_DAY   = 'DAY';
-    const BILLING_PERIOD_MONTH = 'MONTH';
-    const BILLING_PERIOD_YEAR  = 'YEAR';
+    const BILLING_PERIOD_DAY   = Date::PERIOD_DAY;
+    const BILLING_PERIOD_MONTH = Date::PERIOD_MONTH;
+    const BILLING_PERIOD_YEAR  = Date::PERIOD_YEAR;
 
     // --------------------------------------------------------------------------
 
