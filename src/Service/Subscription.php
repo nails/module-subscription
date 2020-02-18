@@ -160,6 +160,6 @@ class Subscription
      */
     public function get(Customer $oCustomer, DateTime $oWhen = null): ?Instance
     {
-
+        return null;
     }
 }
