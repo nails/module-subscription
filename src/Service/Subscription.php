@@ -68,7 +68,9 @@ class Subscription
             //  @todo (Pablo - 2020-02-18) - throw exception
         }
 
-        dd($oPackage);
+        //  @todo (Pablo - 2020-02-18) - Validate package (active, etc)
+        //  @todo (Pablo - 2020-02-18) - Validate source (not expired, belongs to customer etc)
+        //  @todo (Pablo - 2020-02-18) - Calculate instance dates
 
         return $this->oInstanceModel->create([
             'customer_id' => $oCustomer->id,
