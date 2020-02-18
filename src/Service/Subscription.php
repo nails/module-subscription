@@ -13,7 +13,10 @@
 namespace Nails\Subscription\Service;
 
 use DateTime;
+use Nails\Factory;
 use Nails\Invoice\Resource\Customer;
+use Nails\Invoice\Resource\Source;
+use Nails\Subscription\Constants;
 use Nails\Subscription\Resource\Instance;
 use Nails\Subscription\Resource\Package;
 
@@ -24,17 +27,53 @@ use Nails\Subscription\Resource\Package;
  */
 class Subscription
 {
+    /** @var \Nails\Subscription\Model\Instance */
+    protected $oInstanceModel;
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Subscription constructor.
+     *
+     * @throws \Nails\Common\Exception\FactoryException
+     */
+    public function __construct()
+    {
+        $this->oInstanceModel = Factory::model('Instance', Constants::MODULE_SLUG);
+    }
+
+    // --------------------------------------------------------------------------
+
     /**
      * Creates a new subscription
      *
      * @param Customer $oCustomer The customer to apply the subscription to
      * @param Package  $oPackage  The package to apply
+     * @param Source   $oSource   The payment source to use
+     * @param DateTime $oStart    When to start the subscription
      *
      * @return Instance
      */
-    public function create(Customer $oCustomer, Package $oPackage): Instance
-    {
+    public function create(
+        Customer $oCustomer,
+        Package $oPackage,
+        Source $oSource,
+        DateTime $oStart = null
+    ): Instance {
 
+        /** @var \DateTime $oStart */
+        $oStart = $oStart ?? \Nails\Factory::factory('DateTime');
+
+        if ($this->isSubscribed($oCustomer, $oStart)) {
+            //  @todo (Pablo - 2020-02-18) - throw exception
+        }
+
+        dd($oPackage);
+
+        return $this->oInstanceModel->create([
+            'customer_id' => $oCustomer->id,
+            'package_id'  => $oPackage->id,
+        ]);
     }
 
     // --------------------------------------------------------------------------
