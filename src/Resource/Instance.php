@@ -147,7 +147,7 @@ class Instance extends Entity
      * @throws FactoryException
      * @throws ModelException
      */
-    public function invoice(): ?Invoice\Reinvoice\Invoice
+    public function invoice(): ?Invoice\Resource\Invoice
     {
         if (!$this->invoice && $this->invoice_id) {
 
