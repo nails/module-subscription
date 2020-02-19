@@ -19,7 +19,7 @@ use Nails\Common\Resource\DateTime;
 use Nails\Common\Resource\Entity;
 use Nails\Common\Resource\ExpandableField;
 use Nails\Factory;
-use Nails\Subscription\Model\Package\Cost;
+use Nails\Subscription;
 
 /**
  * Class Package
@@ -77,17 +77,17 @@ class Package extends Entity
     {
         if (!$this->costs) {
 
-            $this->package = new ExpandableField();
+            $this->costs = new ExpandableField();
 
-            /** @var Cost $oModel */
-            $oModel              = Factory::model('PackageCost', Subscription\Constants::MODULE_SLUG);
-            $this->package->data = $oModel->getAll([
+            /** @var Subscription\Model\Package\Cost $oModel */
+            $oModel            = Factory::model('PackageCost', Subscription\Constants::MODULE_SLUG);
+            $this->costs->data = $oModel->getAll([
                 'where' => [
                     ['package_id', $this->id],
                 ],
             ]);
 
-            $this->package->count = count($this->package->data);
+            $this->costs->count = count($this->costs->data);
         }
 
         return $this->costs;
