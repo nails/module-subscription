@@ -185,6 +185,71 @@ class Instance extends Entity
     // --------------------------------------------------------------------------
 
     /**
+     * Determines whether the instance is in the free trial period
+     *
+     * @param \DateTime|null $oWhen A \DateTime to check, defaults to now
+     *
+     * @return bool
+     * @throws FactoryException
+     */
+    public function isInFreeTrial(\DateTime $oWhen = null): bool
+    {
+        return $this->isInPeriod($oWhen, 'free_trial');
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Determines whether the instance is in the subscription period
+     *
+     * @param \DateTime|null $oWhen A \DateTime to check, defaults to now
+     *
+     * @return bool
+     * @throws FactoryException
+     */
+    public function isActive(\DateTime $oWhen = null)
+    {
+        return $this->isInPeriod($oWhen, 'subscription');
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Determines whether the instance is in the cooling off period
+     *
+     * @param \DateTime|null $oWhen A \DateTime to check, defaults to now
+     *
+     * @return bool
+     * @throws FactoryException
+     */
+    public function isCoolingOff(\DateTime $oWhen = null)
+    {
+        return $this->isInPeriod($oWhen, 'cooling_off');
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Determines whether the instance is in a particular period
+     *
+     * @param \DateTime|null $oWhen     A \DateTime to check, defaults to now
+     * @param string         $sProperty The property pair to check
+     *
+     * @return bool
+     * @throws FactoryException
+     */
+    protected function isInPeriod(\DateTime $oWhen = null, string $sProperty): bool
+    {
+        /** @var \DateTime $oWhen */
+        $oWhen = $oWhen ?? Factory::factory('DateTime');
+
+        return $this->{'date_' . $sProperty . '_start'}->getDateTimeObject() <= $oWhen
+            && $this->{'date_' . $sProperty . '_end'}->getDateTimeObject() >= $oWhen;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
      * Determines whether the instance will automatically renew
      *
      * @return bool

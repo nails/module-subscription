@@ -580,20 +580,24 @@ class Subscription
         $oInstance = $this->get($oCustomer, $oWhen);
         if (empty($oInstance)) {
             return false;
+        } elseif ($oInstance->isInFreeTrial()) {
+            return true;
+        } else {
+
+            $oInvoice = $oInstance->invoice();
+            if (empty($oInvoice)) {
+                return true;
+            }
+
+            switch ($oInvoice->state->id) {
+                case $this->oInvoiceModel::STATE_PAID:
+                case $this->oInvoiceModel::STATE_PAID_PROCESSING:
+                    return true;
+                    break;
+            }
         }
 
-        $oInvoice = $oInstance->invoice();
-
-        /**
-         * A subscription instance is considered subscribed if:
-         * - The invoice is paid
-         * - The invoice is unpaid, but the free trial is current
-         */
-
-        //  @todo (Pablo - 2020-02-18) - Determine whether the instance is valid
-        $bIsValid = true;
-
-        return $bIsValid;
+        return false;
     }
 
     // --------------------------------------------------------------------------
