@@ -592,7 +592,6 @@ class Subscription
                 case $this->oInvoiceModel::STATE_PAID:
                 case $this->oInvoiceModel::STATE_PAID_PROCESSING:
                     return true;
-                    break;
             }
         }
 
