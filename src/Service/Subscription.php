@@ -114,7 +114,7 @@ class Subscription
         /**
          * Determine whether this customer has used their free trial, if supported.
          */
-        //  @todo (Pablo - 2020-02-18) - Calculate this
+        //  @todo (Pablo - 2020-02-18) - Calculate this; has the user had this package before (and paid for it)
         $bCanUseFreeTrial = true;
 
         // --------------------------------------------------------------------------
@@ -140,6 +140,7 @@ class Subscription
 
         //  @todo (Pablo - 2020-02-18) - Validate package is active
         //  @todo (Pablo - 2020-02-18) - Validate currency is supported by package
+
         //  @todo (Pablo - 2020-02-18) - Validate source has not expired
         //  @todo (Pablo - 2020-02-18) - Validate source will be valid at the start of the subscription
         //  @todo (Pablo - 2020-02-18) - Validate source belongs to the customer
