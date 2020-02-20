@@ -18,6 +18,7 @@ use Nails\Common\Helper\Model\Expand;
 use Nails\Common\Resource\DateTime;
 use Nails\Common\Resource\Entity;
 use Nails\Common\Resource\ExpandableField;
+use Nails\Currency\Resource\Currency;
 use Nails\Factory;
 use Nails\Subscription;
 
@@ -109,5 +110,27 @@ class Package extends Entity
         return $this->is_active
             && (!$this->active_from || $this->active_from->getDateTimeObject() <= $oNow)
             && (!$this->active_to || $this->active_to->getDateTimeObject() >= $oNow);
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Determines whether the package supports a specific currency
+     *
+     * @param Currency $oCurrency The Currency to check
+     *
+     * @return bool
+     * @throws FactoryException
+     * @throws ModelException
+     */
+    public function supportsCurrency(Currency $oCurrency): bool
+    {
+        /** @var Subscription\Resource\Package\Cost $oCost */
+        foreach ($this->costs()->data as $oCost) {
+            if ($oCost->currency == $oCurrency) {
+                return true;
+            }
+        }
+        return false;
     }
 }
