@@ -478,9 +478,19 @@ class Subscription
      *
      * @return Instance
      */
-    public function cancel(Instance $oInstance): Instance
+    public function cancel(Instance $oInstance, string $sReason = null): Instance
     {
-        //  @todo (Pablo - 2020-02-18) - Cancel a subscription
+        /** @var \DateTime $oNow */
+        $oNow = Factory::factory('DateTime');
+
+        return $this->oInstanceModel->update(
+            $oInstance->id,
+            [
+                'is_automatic_renew' => false,
+                'cancel_reason'      => $sReason,
+                'date_cancel'        => $oNow->format('Y-m-d H:i:s'),
+            ]
+        );
     }
 
     // --------------------------------------------------------------------------
@@ -501,7 +511,9 @@ class Subscription
         return $this->oInstanceModel->update(
             $oInstance->id,
             [
-                //  @todo (Pablo - 2020-02-20) - Specify reason
+                'is_automatic_renew'    => false,
+                'cancel_reason'         => $sReason,
+                'date_cancel'           => $oNow->format('Y-m-d H:i:s'),
                 'date_free_trial_end'   => $oNow->format('Y-m-d H:i:s'),
                 'date_subscription_end' => $oNow->format('Y-m-d H:i:s'),
                 'date_cooling_off_end'  => $oNow->format('Y-m-d H:i:s'),

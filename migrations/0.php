@@ -40,6 +40,8 @@ class Migration0 extends Base
                 `date_cooling_off_start` datetime NOT NULL,
                 `date_cooling_off_end` datetime NOT NULL,
                 `is_automatic_renew` tinyint(1) unsigned NOT NULL,
+                `date_cancel` datetime DEFAULT NULL,
+                `cancel_reason` varchar(150) NOT NULL DEFAULT \'\',
                 `created` datetime NOT NULL,
                 `created_by` int(11) unsigned DEFAULT NULL,
                 `modified` datetime NOT NULL,

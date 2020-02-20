@@ -76,6 +76,12 @@ class Instance extends Entity
     /** @var bool */
     public $is_automatic_renew;
 
+    /** @var DateTime */
+    public $date_cancel;
+
+    /** @var string */
+    public $cancel_reason;
+
     // --------------------------------------------------------------------------
 
     public function __construct($mObj = [])
@@ -174,5 +180,29 @@ class Instance extends Entity
         }
 
         return $this->invoice;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Determines whether the instance will automatically renew
+     *
+     * @return bool
+     */
+    public function isAutomaticRenew(): bool
+    {
+        return $this->is_automatic_renew;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Determines whether the instance is cancelled or not
+     *
+     * @return bool
+     */
+    public function isCancelled(): bool
+    {
+        return !$this->isAutomaticRenew() && !empty($this->date_cancel);
     }
 }
