@@ -496,6 +496,21 @@ class Subscription
     // --------------------------------------------------------------------------
 
     /**
+     * Restore a subscription
+     *
+     * @param Instance $oInstance
+     *
+     * @return Instance
+     */
+    public function restore(Instance $oInstance): Instance
+    {
+        //  @todo (Pablo - 2020-02-20) - Restore a subscription
+        //  @todo (Pablo - 2020-02-20) - Test if possible to restore
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
      * Immediately terminate a subscription
      *
      * @param Instance    $oIbonstance The subscription instance to terminate
