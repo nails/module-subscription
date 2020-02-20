@@ -13,9 +13,13 @@
 namespace Nails\Subscription\Service;
 
 use DateTime;
+use Nails\Common\Exception\FactoryException;
+use Nails\Common\Exception\ModelException;
 use Nails\Common\Helper;
 use Nails\Currency\Resource\Currency;
 use Nails\Factory;
+use Nails\Invoice\Exception\InvoiceException;
+use Nails\Invoice\Exception\RequestException;
 use Nails\Invoice\Factory\ChargeRequest;
 use Nails\Invoice\Factory\ChargeResponse;
 use Nails\Invoice\Factory\Invoice;
@@ -23,6 +27,8 @@ use Nails\Invoice\Resource\Customer;
 use Nails\Invoice\Resource\Source;
 use Nails\Subscription\Constants;
 use Nails\Subscription\Exception\AlreadySubscribedException;
+use Nails\Subscription\Exception\PaymentFailedException;
+use Nails\Subscription\Exception\RedirectRequiredException;
 use Nails\Subscription\Resource\Instance;
 use Nails\Subscription\Resource\Package;
 
@@ -57,24 +63,36 @@ class Subscription
     /**
      * Creates a new subscription
      *
-     * @param Customer $oCustomer The customer to apply the subscription to
-     * @param Package  $oPackage  The package to apply
-     * @param Source   $oSource   The payment source to use
-     * @param Currency $oCurrency The currency to charge in
-     * @param DateTime $oStart    When to start the subscription
+     * @param Customer $oCustomer   The customer to apply the subscription to
+     * @param Package  $oPackage    The package to apply
+     * @param Source   $oSource     The payment source to use
+     * @param Currency $oCurrency   The currency to charge in
+     * @param string   $sSuccessUrl For redirect transactions, where to send the user on success
+     * @param string   $sErrorUrl   For redirect transactions, where to send the user on error
+     * @param DateTime $oStart      When to start the subscription
      *
      * @return Instance
+     * @throws AlreadySubscribedException
+     * @throws FactoryException
+     * @throws InvoiceException
+     * @throws ModelException
+     * @throws PaymentFailedException
+     * @throws RedirectRequiredException
      */
     public function create(
         Customer $oCustomer,
         Package $oPackage,
         Source $oSource,
         Currency $oCurrency,
+        string $sSuccessUrl,
+        string $sErrorUrl,
         DateTime $oStart = null
     ): Instance {
 
+        /** @var \DateTime $oNow */
+        $oNow = Factory::factory('DateTime');
         /** @var \DateTime $oStart */
-        $oStart = $oStart ?? \Nails\Factory::factory('DateTime');
+        $oStart = $oStart ?? Factory::factory('DateTime');
 
         // --------------------------------------------------------------------------
 
@@ -139,11 +157,11 @@ class Subscription
                 'package_id'              => $oPackage->id,
                 'source_id'               => $oSource->id,
                 'currency'                => $oCurrency->code,
-                'date_free_trial_start'   => $oFreeTrialStart->format('Y-m-d H:i:59'),
+                'date_free_trial_start'   => $oFreeTrialStart->format('Y-m-d H:i:s'),
                 'date_free_trial_end'     => $oFreeTrialEnd->format('Y-m-d H:i:59'),
-                'date_subscription_start' => $oSubscriptionStart->format('Y-m-d H:i:59'),
+                'date_subscription_start' => $oSubscriptionStart->format('Y-m-d H:i:s'),
                 'date_subscription_end'   => $oSubscriptionEnd->format('Y-m-d H:i:59'),
-                'date_cooling_off_start'  => $oCoolingOffStart->format('Y-m-d H:i:59'),
+                'date_cooling_off_start'  => $oCoolingOffStart->format('Y-m-d H:i:s'),
                 'date_cooling_off_end'    => $oCoolingOffEnd->format('Y-m-d H:i:59'),
                 'is_automatic_renew'      => $oPackage->supports_automatic_renew,
             ],
@@ -152,69 +170,30 @@ class Subscription
 
         // --------------------------------------------------------------------------
 
-        /**
-         * Raise the invoice associated with this instance. Next we'll determine if
-         * it needs charged, or if we're leaving that for the cron job (i.e at the
-         * end of the free trial)
-         */
-        /** @var Invoice $oInvoiceBuilder */
-        $oInvoiceBuilder = Factory::factory('Invoice', \Nails\Invoice\Constants::MODULE_SLUG);
+        try {
 
-        //  @todo (Pablo - 2020-02-18) - Determine which value to use (initial or normal)
+            $this->chargeInvoice(
+                $oInstance,
+                $this->raiseInvoice($oInstance),
+                $oSource,
+                $sSuccessUrl,
+                $sErrorUrl
+            );
 
-        /** @var \Nails\Invoice\Resource\Invoice $oInvoice */
-        $oInvoice = $oInvoiceBuilder
-            ->setCustomerId($oCustomer)
-            ->setCurrency($oCurrency)
-            ->setDated($oSubscriptionStart)
-            ->addItem(
-                $this->getLineItem(
-                    $oPackage,
-                    $this->getPackageCost(
-                        $oPackage,
-                        $oCurrency
-                    )
+        } catch (RedirectRequiredException $e) {
+            throw $e;
+
+        } catch (\Throwable $e) {
+            $this->terminate(
+                $oInstance,
+                sprintf(
+                    'An exception ocurred during processing: %s with code $s; %s',
+                    get_class($e),
+                    $e->getCode(),
+                    $e->getMessage()
                 )
-            )
-            ->save();
-
-        $this->oInstanceModel->update(
-            $oInstance->id,
-            [
-                'invoice_id' => $oInvoice->id,
-            ]
-        );
-        $oInstance->invoice = $oInvoice;
-
-        // --------------------------------------------------------------------------
-
-        /**
-         * If the invoice is due now, attempt to pay it. If it is zero value then mark
-         * it as paid, if it is due to be paid in the future, then leave it as is -
-         * the cron will catch it
-         */
-        //  @todo (Pablo - 2020-02-18) - Determine if the invoice is due to be paid now
-        $bIsDueNow = false;
-
-        if ($bIsDueNow && $oInvoice->totals->raw->grand) {
-
-            try {
-                /** @var ChargeRequest $oChargeRequest */
-                $oChargeRequest = Factory::factory('ChargeRequest', \Nails\Invoice\Constants::MODULE_SLUG);
-                $oChargeRequest->setSource($oSource);
-
-                /** @var ChargeResponse $oChargeResponse */
-                $oChargeResponse = $oInvoice
-                    ->charge($oChargeRequest);
-
-                //  @todo (Pablo - 2020-02-18) - Facilitate failures
-
-            } catch (\Exception $e) {
-                //  @todo (Pablo - 2020-02-18) - handle the failure
-            }
-
-        } elseif (!$oInvoice->totals->raw->grand) {
-            $this->oInvoiceModel->setPaid($oInvoice->id);
+            );
+            throw $e;
         }
 
         // --------------------------------------------------------------------------
@@ -367,6 +346,114 @@ class Subscription
     // --------------------------------------------------------------------------
 
     /**
+     * Raises an invoice for a subscription instance
+     *
+     * @param Instance $oInstance The subscription instance to raise the invoice against
+     *
+     * @return \Nails\Invoice\Resource\Invoice
+     * @throws FactoryException
+     * @throws InvoiceException
+     * @throws ModelException
+     */
+    protected function raiseInvoice(
+        Instance $oInstance
+    ): \Nails\Invoice\Resource\Invoice {
+
+        /** @var Invoice $oInvoiceBuilder */
+        $oInvoiceBuilder = Factory::factory('Invoice', \Nails\Invoice\Constants::MODULE_SLUG);
+
+        //  @todo (Pablo - 2020-02-18) - Determine which value to use (initial or normal)
+
+        /** @var \Nails\Invoice\Resource\Invoice $oInvoice */
+        $oInvoice = $oInvoiceBuilder
+            ->setCustomerId($oInstance->customer())
+            ->setCurrency($oInstance->currency)
+            ->setDated($oInstance->date_subscription_start)
+            ->addItem(
+                $this->getLineItem(
+                    $oInstance->package(),
+                    $this->getPackageCost(
+                        $oInstance->package(),
+                        $oInstance->currency
+                    )
+                )
+            )
+            ->save();
+
+        $this->oInstanceModel->update(
+            $oInstance->id,
+            [
+                'invoice_id' => $oInvoice->id,
+            ]
+        );
+        $oInstance->invoice = $oInvoice;
+
+        return $oInvoice;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Charge an invoice, if the time is right
+     *
+     * @param Instance                        $oInstance   The instance being charged
+     * @param \Nails\Invoice\Resource\Invoice $oInvoice    The invoice to charge
+     * @param Source                          $oSource     The Payment source to use
+     * @param string                          $sSuccessUrl Where to go on successfull payment
+     * @param string                          $sErrorUrl   Where to go on dailed payment
+     *
+     * @throws FactoryException
+     * @throws ModelException
+     * @throws PaymentFailedException
+     * @throws RedirectRequiredException
+     * @throws RequestException
+     */
+    protected function chargeInvoice(
+        Instance $oInstance,
+        \Nails\Invoice\Resource\Invoice $oInvoice,
+        Source $oSource,
+        string $sSuccessUrl,
+        string $sErrorUrl
+    ): void {
+
+        /** @var \DateTime $oNow */
+        $oNow = Factory::factory('DateTime');
+
+        if ($oNow->format('Y-m-d') === $oInvoice->due->format('Y-m-d') && $oInvoice->totals->raw->grand) {
+
+            /** @var ChargeRequest $oChargeRequest */
+            $oChargeRequest = Factory::factory('ChargeRequest', \Nails\Invoice\Constants::MODULE_SLUG);
+            $oChargeRequest
+                ->setAutoRedirect(false)
+                ->setSuccessUrl($sSuccessUrl)
+                ->setErrorUrl($sErrorUrl)
+                ->setSource($oSource);
+
+            /** @var ChargeResponse $oChargeResponse */
+            $oChargeResponse = $oInvoice
+                ->charge($oChargeRequest);
+
+            if ($oChargeResponse->isRedirect()) {
+
+                throw (new RedirectRequiredException())
+                    ->setRedirectUrl($oChargeResponse->getRedirectUrl())
+                    ->setInstance($oInstance);
+
+            } elseif ($oChargeResponse->isFailed()) {
+
+                throw (new PaymentFailedException($oChargeResponse->getErrorMessage()))
+                    ->setUserMessage($oChargeResponse->getErrorMessageUser())
+                    ->setErrorCode($oChargeResponse->getErrorCode());
+            }
+
+        } elseif (!$oInvoice->totals->raw->grand) {
+            $this->oInvoiceModel->setPaid($oInvoice->id);
+        }
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
      * Renews an existing subscription instance
      *
      * @param Instance $oInstance The subscription instance to renew
@@ -381,7 +468,7 @@ class Subscription
     // --------------------------------------------------------------------------
 
     /**
-     * Cancel an existing subscription instance
+     * Prevent a subscription from renewing
      *
      * @param Instance $oInstance The subscription instance to cancel
      *
@@ -390,6 +477,32 @@ class Subscription
     public function cancel(Instance $oInstance): Instance
     {
         //  @todo (Pablo - 2020-02-18) - Cancel a subscription
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Immediately terminate a subscription
+     *
+     * @param Instance    $oIbonstance The subscription instance to terminate
+     * @param string|null $sReason     The reason for termination
+     *
+     * @return bool
+     */
+    public function terminate(Instance $oInstance, string $sReason = null): bool
+    {
+        /** @var \DateTime $oNow */
+        $oNow = Factory::factory('DateTime');
+
+        return $this->oInstanceModel->update(
+            $oInstance->id,
+            [
+                //  @todo (Pablo - 2020-02-20) - Specify reason
+                'date_free_trial_end'   => $oNow->format('Y-m-d H:i:s'),
+                'date_subscription_end' => $oNow->format('Y-m-d H:i:s'),
+                'date_cooling_off_end'  => $oNow->format('Y-m-d H:i:s'),
+            ]
+        );
     }
 
     // --------------------------------------------------------------------------
@@ -471,7 +584,7 @@ class Subscription
             'where'    => [
                 ['customer_id', $oCustomer->id],
             ],
-            'where_or' => [
+            'or_where' => [
                 $this->generateSqlBetween($oWhen, 'free_trial'),
                 $this->generateSqlBetween($oWhen, 'subscription'),
             ],
@@ -493,7 +606,7 @@ class Subscription
     protected function generateSqlBetween(DateTime $oWhen, string $sColumn): string
     {
         return sprintf(
-            '"%1$s" BETWEEN date_%2$s_start AND date_%2$s_end',
+            '`date_%2$s_start` <= "%1$s" AND `date_%2$s_end`>= "%1$s"',
             $oWhen->format('Y-m-d H:i:s'),
             $sColumn
         );

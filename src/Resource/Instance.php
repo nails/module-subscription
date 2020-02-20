@@ -16,6 +16,7 @@ use Nails\Common\Exception\FactoryException;
 use Nails\Common\Exception\ModelException;
 use Nails\Common\Resource\DateTime;
 use Nails\Common\Resource\Entity;
+use Nails\Currency;
 use Nails\Factory;
 use Nails\Invoice;
 use Nails\Subscription;
@@ -51,6 +52,9 @@ class Instance extends Entity
     /** @var Invoice\Resource\Invoice */
     public $invoice;
 
+    /** @var Currency\Resource\Currency */
+    public $currency;
+
     /** @var DateTime */
     public $date_free_trial_start;
 
@@ -71,6 +75,18 @@ class Instance extends Entity
 
     /** @var bool */
     public $is_automatic_renew;
+
+    // --------------------------------------------------------------------------
+
+    public function __construct($mObj = [])
+    {
+        parent::__construct($mObj);
+
+        /** @var Currency\Service\Currency $oCurrency */
+        $oCurrency = Factory::service('Currency', Currency\Constants::MODULE_SLUG);
+
+        $this->currency = $oCurrency->getByIsoCode($this->currency);
+    }
 
     // --------------------------------------------------------------------------
 
@@ -99,11 +115,11 @@ class Instance extends Entity
     /**
      * Returns the instance's package
      *
-     * @return Invoice\Resource\Package|null
+     * @return Subscription\Resource\Package|null
      * @throws FactoryException
      * @throws ModelException
      */
-    public function package(): ?Invoice\Resource\Package
+    public function package(): ?Subscription\Resource\Package
     {
         if (!$this->package && $this->package_id) {
 
