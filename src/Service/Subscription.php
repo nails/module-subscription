@@ -174,7 +174,10 @@ class Subscription
 
             $this->chargeInvoice(
                 $oInstance,
-                $this->raiseInvoice($oInstance),
+                $this->raiseInvoice(
+                    $oInstance,
+                    true //  @todo (Pablo - 2020-02-20) - Determine what price to charge
+                ),
                 $oSource,
                 $sSuccessUrl,
                 $sErrorUrl
@@ -348,7 +351,8 @@ class Subscription
     /**
      * Raises an invoice for a subscription instance
      *
-     * @param Instance $oInstance The subscription instance to raise the invoice against
+     * @param Instance $oInstance      The subscription instance to raise the invoice against
+     * @param bool     $bIsNormalPrice Whether to charge the normal price or not
      *
      * @return \Nails\Invoice\Resource\Invoice
      * @throws FactoryException
@@ -356,13 +360,12 @@ class Subscription
      * @throws ModelException
      */
     protected function raiseInvoice(
-        Instance $oInstance
+        Instance $oInstance,
+        bool $bIsNormalPrice = true
     ): \Nails\Invoice\Resource\Invoice {
 
         /** @var Invoice $oInvoiceBuilder */
         $oInvoiceBuilder = Factory::factory('Invoice', \Nails\Invoice\Constants::MODULE_SLUG);
-
-        //  @todo (Pablo - 2020-02-18) - Determine which value to use (initial or normal)
 
         /** @var \Nails\Invoice\Resource\Invoice $oInvoice */
         $oInvoice = $oInvoiceBuilder
@@ -375,7 +378,8 @@ class Subscription
                     $this->getPackageCost(
                         $oInstance->package(),
                         $oInstance->currency
-                    )
+                    ),
+                    $bIsNormalPrice
                 )
             )
             ->save();
