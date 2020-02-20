@@ -89,8 +89,6 @@ class Subscription
         DateTime $oStart = null
     ): Instance {
 
-        /** @var \DateTime $oNow */
-        $oNow = Factory::factory('DateTime');
         /** @var \DateTime $oStart */
         $oStart = $oStart ?? Factory::factory('DateTime');
 
