@@ -92,4 +92,22 @@ class Package extends Entity
 
         return $this->costs;
     }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Determines whether the package is currently active
+     *
+     * @return bool
+     * @throws FactoryException
+     */
+    public function isActive(): bool
+    {
+        /** @var \DateTime $oNow */
+        $oNow = Factory::factory('DateTime');
+
+        return $this->is_active
+            && (!$this->active_from || $this->active_from->getDateTimeObject() <= $oNow)
+            && (!$this->active_to || $this->active_to->getDateTimeObject() >= $oNow);
+    }
 }
