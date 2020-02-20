@@ -15,6 +15,7 @@ namespace Nails\Subscription\Service;
 use DateTime;
 use Nails\Common\Exception\FactoryException;
 use Nails\Common\Exception\ModelException;
+use Nails\Common\Exception\ValidationException;
 use Nails\Common\Helper;
 use Nails\Currency\Resource\Currency;
 use Nails\Factory;
@@ -132,16 +133,17 @@ class Subscription
 
         // --------------------------------------------------------------------------
 
-        /**
-         * Validate the input, make sure we can use what we need
-         */
-
-        //  @todo (Pablo - 2020-02-18) - Validate package is active
-        //  @todo (Pablo - 2020-02-18) - Validate currency is supported by package
-
-        //  @todo (Pablo - 2020-02-18) - Validate source has not expired
-        //  @todo (Pablo - 2020-02-18) - Validate source will be valid at the start of the subscription
-        //  @todo (Pablo - 2020-02-18) - Validate source belongs to the customer
+        //  Validate the input, make sure we can use what is given
+        $this
+            ->validatePackage(
+                $oPackage,
+                $oCurrency
+            )
+            ->validateSource(
+                $oSubscriptionStart,
+                $oSource,
+                $oCustomer
+            );
 
         // --------------------------------------------------------------------------
 
@@ -282,6 +284,76 @@ class Subscription
             $oStart,
             $oEnd,
         ];
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Validates the selected package can be purchased
+     *
+     * @param Package  $oPackage  The package being purchased
+     * @param Currency $oCurrency The currency being used for the transaction
+     *
+     * @return Subscription
+     * @throws FactoryException
+     * @throws ModelException
+     * @throws ValidationException
+     */
+    protected function validatePackage(Package $oPackage, Currency $oCurrency): Subscription
+    {
+        if (!$oPackage->isActive()) {
+            throw new ValidationException(
+                sprintf(
+                    'Package with ID #%s is not currently active',
+                    $oPackage->id
+                )
+            );
+        } elseif (!$oPackage->supportsCurrency($oCurrency)) {
+            throw new ValidationException(
+                sprintf(
+                    'Package with ID #%s does not support payments in %s',
+                    $oPackage->id,
+                    $oCurrency->code
+                )
+            );
+        }
+
+        return $this;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Validates the payment source can be used by the customer
+     *
+     * @param DateTime $oStart    When the subscription will be charged
+     * @param Source   $oSource   The payment source to be charged
+     * @param Customer $oCustomer The customer being charged
+     *
+     * @return Subscription
+     * @throws ValidationException
+     */
+    protected function validateSource(DateTime $oStart, Source $oSource, Customer $oCustomer): Subscription
+    {
+        if ($oSource->customer_id !== $oCustomer->id) {
+            throw new ValidationException(
+                'Invalid payment source'
+            );
+        } elseif ($oSource->isExpired()) {
+            throw new ValidationException(
+                'Payment source is expired'
+            );
+        } elseif ($oSource->isExpired($oStart)) {
+            throw new ValidationException(
+                sprintf(
+                    'Payment source expires %s; subscription will be billed %s',
+                    $oSource->expiry->formatted,
+                    toUserDate($oStart)
+                )
+            );
+        }
+
+        return $this;
     }
 
     // --------------------------------------------------------------------------
