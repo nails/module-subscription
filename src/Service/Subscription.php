@@ -63,13 +63,13 @@ class Subscription
     /**
      * Creates a new subscription
      *
-     * @param Customer $oCustomer   The customer to apply the subscription to
-     * @param Package  $oPackage    The package to apply
-     * @param Source   $oSource     The payment source to use
-     * @param Currency $oCurrency   The currency to charge in
-     * @param string   $sSuccessUrl For redirect transactions, where to send the user on success
-     * @param string   $sErrorUrl   For redirect transactions, where to send the user on error
-     * @param DateTime $oStart      When to start the subscription
+     * @param Customer      $oCustomer   The customer to apply the subscription to
+     * @param Package       $oPackage    The package to apply
+     * @param Source        $oSource     The payment source to use
+     * @param Currency      $oCurrency   The currency to charge in
+     * @param string        $sSuccessUrl For redirect transactions, where to send the user on success
+     * @param string        $sErrorUrl   For redirect transactions, where to send the user on error
+     * @param DateTime|null $oStart      When to start the subscription
      *
      * @return Instance
      * @throws AlreadySubscribedException
@@ -84,8 +84,8 @@ class Subscription
         Package $oPackage,
         Source $oSource,
         Currency $oCurrency,
-        string $sSuccessUrl,
-        string $sErrorUrl,
+        string $sSuccessUrl = '',
+        string $sErrorUrl = '',
         DateTime $oStart = null
     ): Instance {
 
