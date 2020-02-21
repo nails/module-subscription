@@ -63,7 +63,7 @@ class RedirectRequiredException extends SubscriptionException
      *
      * @return $this
      */
-    public function setRedirectUrl(string $sRedirectUrl): void
+    public function setRedirectUrl(string $sRedirectUrl): self
     {
         $this->sRedirectUrl = $sRedirectUrl;
         return $this;
