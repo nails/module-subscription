@@ -102,11 +102,11 @@ class Summary extends Resource
     /**
      * Returns details about the current package, used when rendering the summary message
      *
-     * @return stdClass
+     * @return stdClass|null
      * @throws FactoryException
      * @throws ModelException
      */
-    public function getPackageDetails(): stdClass
+    public function getPackageDetails(): ?stdClass
     {
         return $this->extractPackageDetails($this->oInstance->package());
     }
@@ -116,11 +116,11 @@ class Summary extends Resource
     /**
      * Returns details about the new package, used when rendering the summary message
      *
-     * @return stdClass
+     * @return stdClass|null
      * @throws FactoryException
      * @throws ModelException
      */
-    public function getNewPackageDetails(): stdClass
+    public function getNewPackageDetails(): ?stdClass
     {
         return $this->extractPackageDetails($this->oInstance->changeToPackage());
     }
@@ -130,12 +130,16 @@ class Summary extends Resource
     /**
      * Returns details about the supplied package
      *
-     * @param \Nails\Subscription\Resource\Package $oPackage A package to summarise
+     * @param \Nails\Subscription\Resource\Package|null $oPackage A package to summarise
      *
-     * @return stdClass
+     * @return stdClass|null
      */
-    protected function extractPackageDetails(\Nails\Subscription\Resource\Package $oPackage): stdClass
+    protected function extractPackageDetails(?\Nails\Subscription\Resource\Package $oPackage): ?stdClass
     {
+        if ($oPackage === null) {
+            return null;
+        }
+
         $aCosts = $oPackage->costs()->data;
         if (count($aCosts) > 1) {
             $aCosts = array_filter(
@@ -208,17 +212,20 @@ class Summary extends Resource
     /**
      * Returns details about the payment source, used when rendering the summary message
      *
-     * @return stdClass
+     * @return stdClass|null
      * @throws FactoryException
      * @throws ModelException
      */
-    public function getSourceDetails(): stdClass
+    public function getSourceDetails(): ?stdClass
     {
-        return (object) [
-            'id'        => $this->oInstance->source()->id,
-            'brand'     => $this->oInstance->source()->brand,
-            'last_four' => $this->oInstance->source()->last_four,
-        ];
+        $oSource = $this->oInstance->source();
+        return $oSource
+            ? (object) [
+                'id'        => $this->oInstance->source()->id,
+                'brand'     => $this->oInstance->source()->brand,
+                'last_four' => $this->oInstance->source()->last_four,
+            ]
+            : null;
     }
 
     // --------------------------------------------------------------------------
