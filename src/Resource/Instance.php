@@ -298,4 +298,19 @@ class Instance extends Entity
     {
         return !$this->isAutomaticRenew() && !empty($this->date_cancel);
     }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns a summary of the subscription
+     *
+     * @return Instance\Summary
+     * @throws FactoryException
+     */
+    public function summary(): Subscription\Resource\Instance\Summary
+    {
+        /** @var Subscription\Resource\Instance\Summary $oSummary */
+        $oSummary = Factory::resource('InstanceSummary', Subscription\Constants::MODULE_SLUG, ['oInstance' => $this]);
+        return $oSummary;
+    }
 }
