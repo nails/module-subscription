@@ -76,6 +76,12 @@ class Instance extends Entity
     /** @var bool */
     public $is_automatic_renew;
 
+    /** @var int */
+    public $change_to_package_id;
+
+    /** @var Package */
+    public $change_to_package;
+
     /** @var DateTime */
     public $date_cancel;
 
@@ -257,6 +263,28 @@ class Instance extends Entity
     public function isAutomaticRenew(): bool
     {
         return $this->is_automatic_renew;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns the package which the subscription will change to at renewal
+     *
+     * @return Subscription\Resource\Package|null
+     * @throws FactoryException
+     * @throws ModelException
+     */
+    public function changeToPackage(): ?Subscription\Resource\Package
+    {
+        if (!$this->change_to_package && $this->change_to_package_id) {
+
+            /** @var Subscription\Model\Package $oModel */
+            $oModel = Factory::model('Package', Subscription\Constants::MODULE_SLUG);
+
+            $this->change_to_package = $oModel->getById($this->change_to_package_id);
+        }
+
+        return $this->change_to_package;
     }
 
     // --------------------------------------------------------------------------
