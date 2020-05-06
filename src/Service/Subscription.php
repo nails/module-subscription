@@ -662,8 +662,26 @@ class Subscription
      * @return Instance
      */
     public function swap(Instance $oInstance, Package $oPackage): Instance
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Sets an instance's auto-renew flag
+     *
+     * @param Instance $oInstance  The instance to modify
+     * @param bool     $bAutoRenew Whether auto-renew should be on or off
+     *
+     * @return Instance
+     */
+    public function setAutoRenew(Instance $oInstance, bool $bAutoRenew): Instance
     {
         //  @todo (Pablo - 2020-02-18) - Swap a subscription
+        return $this->modify(
+            $oInstance,
+            [
+                'is_automatic_renew' => $bAutoRenew,
+            ]
+        );
     }
 
     // --------------------------------------------------------------------------
