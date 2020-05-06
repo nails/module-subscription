@@ -554,8 +554,8 @@ class Subscription
         /** @var \DateTime $oNow */
         $oNow = Factory::factory('DateTime');
 
-        return $this->oInstanceModel->update(
-            $oInstance->id,
+        return $this->modify(
+            $oInstance,
             [
                 'is_automatic_renew' => false,
                 'cancel_reason'      => $sReason,
@@ -587,15 +587,15 @@ class Subscription
      * @param Instance    $oIbonstance The subscription instance to terminate
      * @param string|null $sReason     The reason for termination
      *
-     * @return bool
+     * @return Instance
      */
-    public function terminate(Instance $oInstance, string $sReason = null): bool
+    public function terminate(Instance $oInstance, string $sReason = null): Instance
     {
         /** @var \DateTime $oNow */
         $oNow = Factory::factory('DateTime');
 
-        return $this->oInstanceModel->update(
-            $oInstance->id,
+        return $this->modify(
+            $oInstance,
             [
                 'is_automatic_renew'    => false,
                 'cancel_reason'         => $sReason,
@@ -613,12 +613,23 @@ class Subscription
      * Modify an existing subscription instance
      *
      * @param Instance $oInstance The subscription instance to modify
+     * @param array    $aData     Data to modify the subscription with
      *
      * @return Instance
      */
-    public function modify(Instance $oInstance): Instance
+    public function modify(Instance $oInstance, array $aData): Instance
     {
-        //  @todo (Pablo - 2020-02-18) - Modify a subscription
+        if (!$this->oInstanceModel->update($oInstance->id, $aData)) {
+            throw new SubscriptionException(
+                sprintf(
+                    'Failed to modify subscription. %s',
+                    $oModel->lastError()
+                )
+            );
+        }
+
+        //  @todo (Pablo - 2020-05-06) - Prevent caching
+        return $this->oInstanceModel->getById($oInstance->id);
     }
 
     // --------------------------------------------------------------------------
