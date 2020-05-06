@@ -99,17 +99,19 @@ class Package extends Entity
     /**
      * Determines whether the package is currently active
      *
+     * @param \DateTime $oWhen The time to test against
+     *
      * @return bool
      * @throws FactoryException
      */
-    public function isActive(): bool
+    public function isActive(\DateTime $oWhen = null): bool
     {
-        /** @var \DateTime $oNow */
-        $oNow = Factory::factory('DateTime');
+        /** @var \DateTime $oWhen */
+        $oWhen = $oWhen ?? Factory::factory('DateTime');
 
         return $this->is_active
-            && (!$this->active_from || $this->active_from->getDateTimeObject() <= $oNow)
-            && (!$this->active_to || $this->active_to->getDateTimeObject() >= $oNow);
+            && (!$this->active_from || $this->active_from->getDateTimeObject() <= $oWhen)
+            && (!$this->active_to || $this->active_to->getDateTimeObject() >= $oWhen);
     }
 
     // --------------------------------------------------------------------------
