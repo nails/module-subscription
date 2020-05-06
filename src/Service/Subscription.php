@@ -30,6 +30,7 @@ use Nails\Subscription\Constants;
 use Nails\Subscription\Exception\AlreadySubscribedException;
 use Nails\Subscription\Exception\PaymentFailedException;
 use Nails\Subscription\Exception\RedirectRequiredException;
+use Nails\Subscription\Exception\SubscriptionException;
 use Nails\Subscription\Resource\Instance;
 use Nails\Subscription\Resource\Package;
 
@@ -573,7 +574,7 @@ class Subscription
     // --------------------------------------------------------------------------
 
     /**
-     * Restore a subscription
+     * Restores a cancelled subscription
      *
      * @param Instance $oInstance
      *
@@ -581,8 +582,20 @@ class Subscription
      */
     public function restore(Instance $oInstance): Instance
     {
-        //  @todo (Pablo - 2020-02-20) - Restore a subscription
-        //  @todo (Pablo - 2020-02-20) - Test if possible to restore
+        if (!$oInstance->isCancelled()) {
+            throw new SubscriptionException(
+                'Instance is not in a cancelled state'
+            );
+        }
+
+        return $this->modify(
+            $oInstance,
+            [
+                'is_automatic_renew' => true,
+                'cancel_reason'      => null,
+                'date_cancel'        => null,
+            ]
+        );
     }
 
     // --------------------------------------------------------------------------
