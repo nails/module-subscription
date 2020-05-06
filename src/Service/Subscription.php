@@ -362,15 +362,16 @@ class Subscription
     /**
      * Generate the subscription line item
      *
-     * @param Package  $oPackage  The package being applied
-     * @param Currency $oCurrency The currency being used for this transaction
+     * @param Package  $oPackage       The package being applied
+     * @param Currency $oCurrency      The currency being used for this transaction
+     * @param bool     $bIsNormalPrice Whether to charge the normal package price or not
      *
      * @return Invoice\Item
      * @throws \Nails\Common\Exception\FactoryException
      */
     protected function getLineItem(
         Package $oPackage,
-        Package\Cost $oCost,
+        Currency $oCurrency,
         bool $bIsNormalPrice = true
     ): Invoice\Item {
 
@@ -387,35 +388,11 @@ class Subscription
             ->setQuantity($oPackage->billing_duration)
             ->setUnitCost(
                 $bIsNormalPrice
-                    ? $oCost->value_normal
-                    : $oCost->value_initial
+                    ? $oPackage->getCost($oCurrency)->value_normal
+                    : $oPackage->getCost($oCurrency)->value_initial
             );
 
         return $oItem;
-    }
-
-    // --------------------------------------------------------------------------
-
-    /**
-     * Determine the cost of the package
-     *
-     * @param Package  $oPackage  The package to analyse
-     * @param Currency $oCurrency The currency being used
-     *
-     * @return Package\Cost
-     * @throws \Nails\Common\Exception\FactoryException
-     * @throws \Nails\Common\Exception\ModelException
-     */
-    protected function getPackageCost(Package $oPackage, Currency $oCurrency): Package\Cost
-    {
-        $aCosts = array_filter(
-            $oPackage->costs()->data,
-            function (Package\Cost $oItem) use ($oCurrency) {
-                return $oItem->currency->code === $oCurrency->code;
-            }
-        );
-
-        return reset($aCosts);
     }
 
     // --------------------------------------------------------------------------
@@ -447,10 +424,7 @@ class Subscription
             ->addItem(
                 $this->getLineItem(
                     $oInstance->package(),
-                    $this->getPackageCost(
-                        $oInstance->package(),
-                        $oInstance->currency
-                    ),
+                    $oInstance->currency,
                     $bIsNormalPrice
                 )
             )
