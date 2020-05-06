@@ -654,14 +654,49 @@ class Subscription
     // --------------------------------------------------------------------------
 
     /**
-     * Changes a subscription from one package onto another
+     * Sets the subscription to change to at the end of the billing term
      *
-     * @param Instance $oInstance The subscription instance to modify
-     * @param Package  $oPackage  The new package to apply
+     * @param Instance $oInstance    The subscription instance to modify
+     * @param Package  $oNewPackage  The new package to apply
+     * @param bool     $bImmediately Whether to swap immediately
      *
      * @return Instance
      */
-    public function swap(Instance $oInstance, Package $oPackage): Instance
+    public function swap(
+        Instance $oInstance,
+        Package $oNewPackage,
+        bool $bImmediately = false
+    ): Instance {
+
+        if ($bImmediately) {
+            //  @todo (Pablo - 2020-05-06) - Handle swapping immediately
+            throw new SubscriptionException(
+                'Swapping a subscription immediately is not currently implemented'
+            );
+        }
+
+        if (!$oNewPackage->isActive($oInstance->date_subscription_end->getDateTimeObject())) {
+            throw new SubscriptionException(
+                'Desired package will not be active at time of renewal'
+            );
+        }
+
+        //  This test ensures that any previous swap request is reverted
+        if ($oInstance->package_id === $oNewPackage->id) {
+            $aData = [
+                'is_automatic_renew'   => true,
+                'change_to_package_id' => null,
+            ];
+        } else {
+            $aData = [
+                'is_automatic_renew'   => true,
+                'package_id'           => $oInstance->id,
+                'change_to_package_id' => $oNewPackage->id,
+            ];
+        }
+
+        return $this->modify($oInstance, $aData);
+    }
 
     // --------------------------------------------------------------------------
 
@@ -675,7 +710,6 @@ class Subscription
      */
     public function setAutoRenew(Instance $oInstance, bool $bAutoRenew): Instance
     {
-        //  @todo (Pablo - 2020-02-18) - Swap a subscription
         return $this->modify(
             $oInstance,
             [
