@@ -97,6 +97,31 @@ class Package extends Entity
     // --------------------------------------------------------------------------
 
     /**
+     * Returns the cost of a package for a given currency
+     *
+     * @param Currency $oCurrency The desired currency
+     *
+     * @return Package\Cost|null
+     * @throws FactoryException
+     * @throws ModelException
+     */
+    public function getCost(Currency $oCurrency): ?Subscription\Resource\Package\Cost
+    {
+        /** @var Subscription\Resource\Package\Cost[] $aCosts */
+        $aCosts = $this->costs()->data;
+
+        foreach ($aCosts as $oCost) {
+            if ($oCost->currency === $oCurrency) {
+                return $oCost;
+            }
+        }
+
+        return null;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
      * Determines whether the package is currently active
      *
      * @param \DateTime $oWhen The time to test against
@@ -129,7 +154,7 @@ class Package extends Entity
     {
         /** @var Subscription\Resource\Package\Cost $oCost */
         foreach ($this->costs()->data as $oCost) {
-            if ($oCost->currency == $oCurrency) {
+            if ($oCost->currency === $oCurrency) {
                 return true;
             }
         }
