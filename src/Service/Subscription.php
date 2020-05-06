@@ -551,6 +551,12 @@ class Subscription
      */
     public function cancel(Instance $oInstance, string $sReason = null): Instance
     {
+        if ($oInstance->isCancelled()) {
+            throw new SubscriptionException(
+                'Instance is already cancelled'
+            );
+        }
+
         /** @var \DateTime $oNow */
         $oNow = Factory::factory('DateTime');
 
