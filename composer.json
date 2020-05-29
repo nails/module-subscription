@@ -39,7 +39,8 @@
     "extra": {
         "nails": {
             "moduleName": "subscription",
-            "type": "module"
+            "type": "module",
+            "namespace": "Nails\\Subscription\\"
         }
     }
 }
