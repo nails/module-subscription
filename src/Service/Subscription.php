@@ -30,6 +30,9 @@ use Nails\Subscription\Constants;
 use Nails\Subscription\Exception\AlreadySubscribedException;
 use Nails\Subscription\Exception\PaymentFailedException;
 use Nails\Subscription\Exception\RedirectRequiredException;
+use Nails\Subscription\Exception\RenewalException;
+use Nails\Subscription\Exception\RenewalException\InstanceCannotRenewException;
+use Nails\Subscription\Exception\RenewalException\InstanceShouldNotRenewException;
 use Nails\Subscription\Exception\SubscriptionException;
 use Nails\Subscription\Resource\Instance;
 use Nails\Subscription\Resource\Package;
@@ -152,22 +155,18 @@ class Subscription
          * Create the instance of the subscription. We want to record that the attempt
          * was made, regardless of the outcome of any invoice payment failures
          */
-        /** @var Instance $oInstance */
-        $oInstance = $this->oInstanceModel->create(
-            [
-                'customer_id'             => $oCustomer->id,
-                'package_id'              => $oPackage->id,
-                'source_id'               => $oSource->id,
-                'currency'                => $oCurrency->code,
-                'date_free_trial_start'   => $oFreeTrialStart->format('Y-m-d H:i:s'),
-                'date_free_trial_end'     => $oFreeTrialEnd->format('Y-m-d H:i:59'),
-                'date_subscription_start' => $oSubscriptionStart->format('Y-m-d H:i:s'),
-                'date_subscription_end'   => $oSubscriptionEnd->format('Y-m-d H:i:59'),
-                'date_cooling_off_start'  => $oCoolingOffStart->format('Y-m-d H:i:s'),
-                'date_cooling_off_end'    => $oCoolingOffEnd->format('Y-m-d H:i:59'),
-                'is_automatic_renew'      => $oPackage->supports_automatic_renew,
-            ],
-            true
+
+        $oInstance = $this->createInstance(
+            $oCustomer,
+            $oPackage,
+            $oSource,
+            $oCurrency,
+            $oFreeTrialStart,
+            $oFreeTrialEnd,
+            $oSubscriptionStart,
+            $oSubscriptionEnd,
+            $oCoolingOffStart,
+            $oCoolingOffEnd
         );
 
         // --------------------------------------------------------------------------
@@ -327,15 +326,17 @@ class Subscription
     /**
      * Validates the payment source can be used by the customer
      *
-     * @param DateTime $oStart    When the subscription will be charged
-     * @param Source   $oSource   The payment source to be charged
-     * @param Customer $oCustomer The customer being charged
+     * @param DateTime|null $oStart    When the subscription will be charged
+     * @param Source        $oSource   The payment source to be charged
+     * @param Customer      $oCustomer The customer being charged
      *
      * @return Subscription
      * @throws ValidationException
      */
-    protected function validateSource(DateTime $oStart, Source $oSource, Customer $oCustomer): Subscription
+    protected function validateSource(?DateTime $oStart, Source $oSource, Customer $oCustomer): Subscription
     {
+        $oStart = $oStart ?? Factory::factory('DateTime');
+
         if ($oSource->customer_id !== $oCustomer->id) {
             throw new ValidationException(
                 'Invalid payment source'
@@ -355,6 +356,59 @@ class Subscription
         }
 
         return $this;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Creates a new instance
+     *
+     * @param Customer $oCustomer          The custoer to assign the instance too
+     * @param Package  $oPackage           The package to assign to the instance
+     * @param Source   $oSource            The payment source for the instance
+     * @param Currency $oCurrency          The currency to charge in
+     * @param DateTime $oFreeTrialStart    The free trial start date
+     * @param DateTime $oFreeTrialEnd      The free trial end date
+     * @param DateTime $oSubscriptionStart The subscription start date
+     * @param DateTime $oSubscriptionEnd   The subscription end date
+     * @param DateTime $oCoolingOffStart   The cooling off period start date
+     * @param DateTime $oCoolingOffEnd     The cooling off period end date
+     * @param Instance $oPreviousInstance  The previous instance in the chain, if applicable
+     *
+     * @return Instance
+     * @throws ModelException
+     */
+    protected function createInstance(
+        Customer $oCustomer,
+        Package $oPackage,
+        Source $oSource,
+        Currency $oCurrency,
+        DateTime $oFreeTrialStart,
+        DateTime $oFreeTrialEnd,
+        DateTime $oSubscriptionStart,
+        DateTime $oSubscriptionEnd,
+        DateTime $oCoolingOffStart,
+        DateTime $oCoolingOffEnd,
+        Instance $oPreviousInstance = null
+    ): Instance {
+
+        return $this->oInstanceModel->create(
+            [
+                'customer_id'             => $oCustomer->id,
+                'package_id'              => $oPackage->id,
+                'source_id'               => $oSource->id,
+                'currency'                => $oCurrency->code,
+                'date_free_trial_start'   => $oFreeTrialStart->format('Y-m-d H:i:s'),
+                'date_free_trial_end'     => $oFreeTrialEnd->format('Y-m-d H:i:59'),
+                'date_subscription_start' => $oSubscriptionStart->format('Y-m-d H:i:s'),
+                'date_subscription_end'   => $oSubscriptionEnd->format('Y-m-d H:i:59'),
+                'date_cooling_off_start'  => $oCoolingOffStart->format('Y-m-d H:i:s'),
+                'date_cooling_off_end'    => $oCoolingOffEnd->format('Y-m-d H:i:59'),
+                'is_automatic_renew'      => $oPackage->supports_automatic_renew,
+                'previous_instance_id'    => $oPreviousInstance->id ?? null,
+            ],
+            true
+        );
     }
 
     // --------------------------------------------------------------------------
@@ -510,10 +564,116 @@ class Subscription
      *
      * @return Instance
      */
-    public function renew(Instance $oInstance): Instance
+    public function renew(Instance $oInstance, \DateTime $oWhen = null): Instance
     {
-        throw new \Exception('Method not implemented');
-        //  @todo (Pablo - 2020-02-18) - Renew an instance
+
+        $oWhen = $oWhen ?? Factory::factory('DateTime');
+
+        $this
+            ->instanceShouldRenew($oInstance)
+            ->instanceCanRenew($oInstance, $oWhen);
+
+        $oCustomer = $oInstance->customer();
+        $oSource   = $oInstance->source();
+        $oPackage  = $oInstance->changeToPackage() ?: $oInstance->package();
+
+        // --------------------------------------------------------------------------
+
+        /**
+         * Calculate instance dates, cooling off period and free trials no longer apply
+         */
+        [$oSubscriptionStart, $oSubscriptionEnd] = $this->calculateSubscriptionDates(
+            $oPackage,
+            $oInstance->date_subscription_end->getDateTimeObject()
+        );
+        [$oFreeTrialStart, $oFreeTrialEnd] = [clone $oSubscriptionStart, clone $oSubscriptionStart];
+        [$oCoolingOffStart, $oCoolingOffEnd] = [clone $oSubscriptionStart, clone $oSubscriptionStart];
+
+        // --------------------------------------------------------------------------
+
+        $oInstance = $this->createInstance(
+            $oCustomer,
+            $oPackage,
+            $oSource,
+            $oInstance->currency,
+            $oFreeTrialStart,
+            $oFreeTrialEnd,
+            $oSubscriptionStart,
+            $oSubscriptionEnd,
+            $oCoolingOffStart,
+            $oCoolingOffEnd,
+            $oInstance
+        );
+
+        dd($oInstance);
+
+        //  @todo (Pablo - 2020-05-29) - Raise invoice
+        //  @todo (Pablo - 2020-05-29) - Attempt payment
+        //  @todo (Pablo - 2020-05-29) - On success update instance previous/next IDs
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Tests Whether an instance _should_ renew
+     *
+     * @param Instance $oInstance
+     *
+     * @return $this
+     * @throws FactoryException
+     * @throws InstanceShouldNotRenewException
+     * @throws ModelException
+     */
+    protected function instanceShouldRenew(Instance $oInstance): self
+    {
+        if (!$oInstance->isAutomaticRenew()) {
+            $e = new InstanceShouldNotRenewException(
+                'Instance is configured to not renew'
+            );
+        } elseif (!empty($oInstance->nextInstance())) {
+            $e = new InstanceShouldNotRenewException(
+                'Instance has already been renewed'
+            );
+        }
+
+        if (!empty($e)) {
+            $e->setInstance($oInstance);
+            throw $e;
+        }
+
+        return $this;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Tests Whether an instance _can_ renew
+     *
+     * @param Instance $oInstance
+     *
+     * @return $this
+     */
+    protected function instanceCanRenew(Instance $oInstance): self
+    {
+        $oNewPackage = $oInstance->changeToPackage() ?: $oInstance->package();
+
+        try {
+
+            $this
+                ->validatePackage($oNewPackage, $oInstance->currency)
+                ->validateSource(null, $oInstance->source(), $oInstance->customer());
+
+        } catch (ValidationException $e) {
+            $e = new InstanceCannotRenewException(
+                $e->getMessage(),
+                $e->getCode(),
+                $e
+            );
+            $e->setInstance($oInstance);
+            throw $e;
+        }
+
+        return $this;
     }
 
     // --------------------------------------------------------------------------
@@ -800,7 +960,7 @@ class Subscription
                 $aInstances,
                 function (Instance $oInstance) {
 
-                    if (!$oInstance->is_automatic_renew) {
+                    if (!$oInstance->isAutomaticRenew()) {
                         return false;
                     } elseif (!empty($oInstance->nextInstance())) {
                         return false;
