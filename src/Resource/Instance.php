@@ -88,8 +88,28 @@ class Instance extends Entity
     /** @var string */
     public $cancel_reason;
 
+    /** @var int */
+    public $previous_instance_id;
+
+    /** @var self */
+    public $previous_instance;
+
+    /** @var int */
+    public $next_instance_id;
+
+    /** @var self */
+    public $next_instance;
+
     // --------------------------------------------------------------------------
 
+    /**
+     * Instance constructor.
+     *
+     * @param array $mObj
+     *
+     * @throws Currency\Exception\CurrencyException
+     * @throws FactoryException
+     */
     public function __construct($mObj = [])
     {
         parent::__construct($mObj);
@@ -312,5 +332,49 @@ class Instance extends Entity
         /** @var Subscription\Resource\Instance\Summary $oSummary */
         $oSummary = Factory::resource('InstanceSummary', Subscription\Constants::MODULE_SLUG, ['oInstance' => $this]);
         return $oSummary;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns the instance's previous instance
+     *
+     * @return self|null
+     * @throws FactoryException
+     * @throws ModelException
+     */
+    public function previousInstance(): ?self
+    {
+        if (!$this->previous_instance && $this->previous_instance_id) {
+
+            /** @var Subscription\Model\Instance $oModel */
+            $oModel = Factory::model('Instance', Subscription\Constants::MODULE_SLUG);
+
+            $this->previous_instance = $oModel->getById($this->previous_instance_id);
+        }
+
+        return $this->previous_instance;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns the instance's next instance
+     *
+     * @return self|null
+     * @throws FactoryException
+     * @throws ModelException
+     */
+    public function nextInstance(): ?self
+    {
+        if (!$this->next_instance && $this->next_instance_id) {
+
+            /** @var Subscription\Model\Instance $oModel */
+            $oModel = Factory::model('Instance', Subscription\Constants::MODULE_SLUG);
+
+            $this->next_instance = $oModel->getById($this->next_instance_id);
+        }
+
+        return $this->next_instance;
     }
 }

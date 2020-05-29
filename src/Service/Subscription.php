@@ -512,6 +512,7 @@ class Subscription
      */
     public function renew(Instance $oInstance): Instance
     {
+        throw new \Exception('Method not implemented');
         //  @todo (Pablo - 2020-02-18) - Renew an instance
     }
 
@@ -729,7 +730,7 @@ class Subscription
     // --------------------------------------------------------------------------
 
     /**
-     * Returns a customer's subscription instance, if any, for a particular
+     * Returns a customer's subscription instance, if any, for a particular date
      *
      * @param Customer      $oCustomer The customer to check
      * @param DateTime|null $oWhen     The time period to check
@@ -752,6 +753,63 @@ class Subscription
         ]);
 
         return reset($aInstance) ?: null;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns subscriptions which are due to renew on a particular date
+     *
+     * @param DateTime|null $oWhen           The date to fetch renewals for
+     * @param bool          $bOnlyDueToRenew Filter out instances which are not due to renew, or have already been renewed
+     *
+     * @return Instance[]
+     * @throws FactoryException
+     */
+    public function getRenewals(\DateTime $oWhen = null, bool $bOnlyDueToRenew = false): array
+    {
+        /** @var DateTime $oWhen */
+        $oWhen = $oWhen ?? Factory::factory('DateTime');
+
+        $aInstances = $this->oInstanceModel->getAll([
+            'where' => [
+                ['DATE(date_subscription_end)', $oWhen->format('Y-m-d')],
+            ],
+        ]);
+
+        return $bOnlyDueToRenew
+            ? $this->filterInstancesWhichWillNotRenew($aInstances)
+            : $aInstances;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Filters intances which will not renew
+     * – Are set to not renew
+     * – Have already renewed
+     *
+     * @param Instance[] $aInstances The instances to filter
+     *
+     * @return Instance[]
+     */
+    protected function filterInstancesWhichWillNotRenew(array $aInstances): array
+    {
+        return array_values(
+            array_filter(
+                $aInstances,
+                function (Instance $oInstance) {
+
+                    if (!$oInstance->is_automatic_renew) {
+                        return false;
+                    } elseif (!empty($oInstance->nextInstance())) {
+                        return false;
+                    }
+
+                    return true;
+                }
+            )
+        );
     }
 
     // --------------------------------------------------------------------------
