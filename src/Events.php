@@ -13,6 +13,8 @@
 namespace Nails\Subscription;
 
 use Nails\Common\Events\Base;
+use Nails\Common\Events\Subscription;
+use Nails\Subscription\Event\Listener;
 use Nails\Subscription\Exception\RenewalException\InstanceCannotRenewException;
 use Nails\Subscription\Exception\RenewalException\InstanceFailedToRenewException;
 use Nails\Subscription\Exception\RenewalException\InstanceShouldNotRenewException;
@@ -60,9 +62,23 @@ class Events extends Base
     /**
      * Fired when an instance renewal fails with an uncaught exception
      *
-     * @param Resource\Instance      $oOldInstance The instance being renewed
-     * @param Resource\Instance|null $oNewInstance The new instance which was generated
+     * @param Resource\Instance      $oOldInstance The instance being renewed (if available)
+     * @param Resource\Instance|null $oNewInstance The new instance which was generated (if available)
      * @param \Exception             $oException   The exception which was thrown
      */
     const RENEWAL_UNCAUGHT_EXCEPTION = 'RENEWAL_UNCAUGHT_EXCEPTION';
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Autoloads event listeners
+     *
+     * @return Subscription[]
+     */
+    public function autoload(): array
+    {
+        return [
+            new Listener\Invoice\Paid(),
+        ];
+    }
 }

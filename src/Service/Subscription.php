@@ -68,13 +68,14 @@ class Subscription
     /**
      * Creates a new subscription
      *
-     * @param Customer      $oCustomer   The customer to apply the subscription to
-     * @param Package       $oPackage    The package to apply
-     * @param Source        $oSource     The payment source to use
-     * @param Currency      $oCurrency   The currency to charge in
-     * @param string        $sSuccessUrl For redirect transactions, where to send the user on success
-     * @param string        $sErrorUrl   For redirect transactions, where to send the user on error
-     * @param DateTime|null $oStart      When to start the subscription
+     * @param Customer      $oCustomer        The customer to apply the subscription to
+     * @param Package       $oPackage         The package to apply
+     * @param Source        $oSource          The payment source to use
+     * @param Currency      $oCurrency        The currency to charge in
+     * @param bool          $bCustomerPresent Whether the customer is present or not
+     * @param string        $sSuccessUrl      For redirect transactions, where to send the user on success
+     * @param string        $sErrorUrl        For redirect transactions, where to send the user on error
+     * @param DateTime|null $oStart           When to start the subscription
      *
      * @return Instance
      * @throws AlreadySubscribedException
@@ -89,6 +90,7 @@ class Subscription
         Package $oPackage,
         Source $oSource,
         Currency $oCurrency,
+        bool $bCustomerPresent,
         string $sSuccessUrl = '',
         string $sErrorUrl = '',
         DateTime $oStart = null
@@ -180,6 +182,7 @@ class Subscription
                     true //  @todo (Pablo - 2020-02-20) - Determine what price to charge
                 ),
                 $oSource,
+                $bCustomerPresent,
                 $sSuccessUrl,
                 $sErrorUrl
             );
@@ -191,7 +194,7 @@ class Subscription
             $this->terminate(
                 $oInstance,
                 sprintf(
-                    'An exception ocurred during processing: %s with code $s; %s',
+                    'An exception ocurred during processing: %s with code %s; %s',
                     get_class($e),
                     $e->getCode(),
                     $e->getMessage()
@@ -399,11 +402,11 @@ class Subscription
                 'source_id'               => $oSource->id,
                 'currency'                => $oCurrency->code,
                 'date_free_trial_start'   => $oFreeTrialStart->format('Y-m-d H:i:s'),
-                'date_free_trial_end'     => $oFreeTrialEnd->format('Y-m-d H:i:59'),
+                'date_free_trial_end'     => $oFreeTrialEnd->format('Y-m-d H:i:s'),
                 'date_subscription_start' => $oSubscriptionStart->format('Y-m-d H:i:s'),
-                'date_subscription_end'   => $oSubscriptionEnd->format('Y-m-d H:i:59'),
+                'date_subscription_end'   => $oSubscriptionEnd->format('Y-m-d H:i:s'),
                 'date_cooling_off_start'  => $oCoolingOffStart->format('Y-m-d H:i:s'),
-                'date_cooling_off_end'    => $oCoolingOffEnd->format('Y-m-d H:i:59'),
+                'date_cooling_off_end'    => $oCoolingOffEnd->format('Y-m-d H:i:s'),
                 'is_automatic_renew'      => $oPackage->supports_automatic_renew,
                 'previous_instance_id'    => $oPreviousInstance->id ?? null,
             ],
@@ -416,21 +419,25 @@ class Subscription
     /**
      * Generate the subscription line item
      *
-     * @param Package  $oPackage       The package being applied
-     * @param Currency $oCurrency      The currency being used for this transaction
+     * @param Instance $oInstance      The instance being charged
      * @param bool     $bIsNormalPrice Whether to charge the normal package price or not
      *
      * @return Invoice\Item
      * @throws \Nails\Common\Exception\FactoryException
      */
     protected function getLineItem(
-        Package $oPackage,
-        Currency $oCurrency,
+        Instance $oInstance,
         bool $bIsNormalPrice = true
     ): Invoice\Item {
 
+        $oPackage  = $oInstance->package();
+        $oCurrency = $oInstance->currency;
+
         /** @var Invoice\Item $oItem */
         $oItem = Factory::factory('InvoiceItem', \Nails\Invoice\Constants::MODULE_SLUG);
+        /** @var Instance\CallbackData $oCallbackData */
+        $oCallbackData = Factory::resource('InstanceCallbackData', Constants::MODULE_SLUG, []);
+
         $oItem
             ->setLabel(
                 sprintf(
@@ -444,6 +451,10 @@ class Subscription
                 $bIsNormalPrice
                     ? $oPackage->getCost($oCurrency)->value_normal
                     : $oPackage->getCost($oCurrency)->value_initial
+            )
+            ->setCallbackData(
+                $oCallbackData
+                    ->setInstance($oInstance)
             );
 
         return $oItem;
@@ -477,8 +488,7 @@ class Subscription
             ->setDated($oInstance->date_subscription_start)
             ->addItem(
                 $this->getLineItem(
-                    $oInstance->package(),
-                    $oInstance->currency,
+                    $oInstance,
                     $bIsNormalPrice
                 )
             )
@@ -500,11 +510,12 @@ class Subscription
     /**
      * Charge an invoice, if the time is right
      *
-     * @param Instance                        $oInstance   The instance being charged
-     * @param \Nails\Invoice\Resource\Invoice $oInvoice    The invoice to charge
-     * @param Source                          $oSource     The Payment source to use
-     * @param string                          $sSuccessUrl Where to go on successfull payment
-     * @param string                          $sErrorUrl   Where to go on dailed payment
+     * @param Instance                        $oInstance        The instance being charged
+     * @param \Nails\Invoice\Resource\Invoice $oInvoice         The invoice to charge
+     * @param Source                          $oSource          The Payment source to use
+     * @param string                          $sSuccessUrl      Where to go on successfull payment
+     * @param string                          $sErrorUrl        Where to go on dailed payment
+     * @param bool                            $bForcePaymentNow Attempt payment now, even if it is not due
      *
      * @throws FactoryException
      * @throws ModelException
@@ -516,14 +527,19 @@ class Subscription
         Instance $oInstance,
         \Nails\Invoice\Resource\Invoice $oInvoice,
         Source $oSource,
-        string $sSuccessUrl,
-        string $sErrorUrl
+        bool $bCustomerPresent = false,
+        string $sSuccessUrl = '',
+        string $sErrorUrl = '',
+        bool $bForcePaymentNow = false
     ): void {
 
         /** @var \DateTime $oNow */
         $oNow = Factory::factory('DateTime');
 
-        if ($oNow->format('Y-m-d') === $oInvoice->due->format('Y-m-d') && $oInvoice->totals->raw->grand) {
+        if (
+            ($bForcePaymentNow || $oNow->format('Y-m-d') === $oInvoice->due->format('Y-m-d'))
+            && $oInvoice->totals->raw->grand
+        ) {
 
             /** @var ChargeRequest $oChargeRequest */
             $oChargeRequest = Factory::factory('ChargeRequest', \Nails\Invoice\Constants::MODULE_SLUG);
@@ -560,22 +576,20 @@ class Subscription
     /**
      * Renews an existing subscription instance
      *
-     * @param Instance $oInstance The subscription instance to renew
+     * @param Instance $oOldInstance     The subscription instance to renew
+     * @param bool     $bCustomerPresent Whether the customer is present or not
      *
      * @return Instance
      */
-    public function renew(Instance $oInstance, \DateTime $oWhen = null): Instance
+    public function renew(Instance $oOldInstance, bool $bCustomerPresent): Instance
     {
-
-        $oWhen = $oWhen ?? Factory::factory('DateTime');
-
         $this
-            ->instanceShouldRenew($oInstance)
-            ->instanceCanRenew($oInstance, $oWhen);
+            ->instanceShouldRenew($oOldInstance)
+            ->instanceCanRenew($oOldInstance);
 
-        $oCustomer = $oInstance->customer();
-        $oSource   = $oInstance->source();
-        $oPackage  = $oInstance->changeToPackage() ?: $oInstance->package();
+        $oCustomer = $oOldInstance->customer();
+        $oSource   = $oOldInstance->source();
+        $oPackage  = $oOldInstance->changeToPackage() ?: $oOldInstance->package();
 
         // --------------------------------------------------------------------------
 
@@ -584,32 +598,98 @@ class Subscription
          */
         [$oSubscriptionStart, $oSubscriptionEnd] = $this->calculateSubscriptionDates(
             $oPackage,
-            $oInstance->date_subscription_end->getDateTimeObject()
+            $oOldInstance->date_subscription_end->getDateTimeObject()
         );
         [$oFreeTrialStart, $oFreeTrialEnd] = [clone $oSubscriptionStart, clone $oSubscriptionStart];
         [$oCoolingOffStart, $oCoolingOffEnd] = [clone $oSubscriptionStart, clone $oSubscriptionStart];
 
         // --------------------------------------------------------------------------
 
-        $oInstance = $this->createInstance(
+        $oNewInstance = $this->createInstance(
             $oCustomer,
             $oPackage,
             $oSource,
-            $oInstance->currency,
+            $oOldInstance->currency,
             $oFreeTrialStart,
             $oFreeTrialEnd,
             $oSubscriptionStart,
             $oSubscriptionEnd,
             $oCoolingOffStart,
             $oCoolingOffEnd,
-            $oInstance
+            $oOldInstance
         );
 
-        dd($oInstance);
+        try {
 
-        //  @todo (Pablo - 2020-05-29) - Raise invoice
-        //  @todo (Pablo - 2020-05-29) - Attempt payment
-        //  @todo (Pablo - 2020-05-29) - On success update instance previous/next IDs
+            $this->chargeInvoice(
+                $oNewInstance,
+                $this->raiseInvoice($oNewInstance),
+                $oNewInstance->source(),
+                $bCustomerPresent,
+                '',
+                '',
+                true
+            );
+
+            return $oNewInstance;
+
+        } catch (\Exception $e) {
+
+            if ($e instanceof RedirectRequiredException) {
+                throw (new RenewalException\InstanceFailedToRenewException($e->getMessage(), $e->getCode()))
+                    ->setOriginalException($e)
+                    ->setInstance($oOldInstance)
+                    ->setNewInstance($oNewInstance);
+
+            } elseif ($e instanceof PaymentFailedException) {
+                throw (new RenewalException\InstanceFailedToRenewException($e->getMessage(), $e->getCode()))
+                    ->setOriginalException($e)
+                    ->setInstance($oOldInstance)
+                    ->setNewInstance($oNewInstance);
+            }
+
+            throw $e;
+        }
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Confirms a renewal and updates the instances in questions
+     *
+     * @param Instance $oInstance
+     *
+     * @throws FactoryException
+     * @throws ModelException
+     * @throws RenewalException\InstanceFailedToRenewException
+     */
+    public function confirmRenewal(Instance $oInstance)
+    {
+        $oInvoice = $oInstance->invoice();
+        if (empty($oInvoice)) {
+            throw new RenewalException\InstanceFailedToRenewException(
+                'Could not find associated invoice'
+            );
+        }
+
+        if (!in_array($oInvoice->state->id, [
+            $this->oInvoiceModel::STATE_PAID,
+            $this->oInvoiceModel::STATE_PAID_PROCESSING,
+        ])) {
+            throw new RenewalException\InstanceFailedToRenewException(
+                'Associated invoice has not been paid'
+            );
+        }
+
+        $oPreviousInstance = $oInstance->previousInstance();
+        if (!empty($oPreviousInstance)) {
+            $this->oInstanceModel->update(
+                $oPreviousInstance->id,
+                [
+                    'next_instance_id' => $oInstance->id,
+                ]
+            );
+        }
     }
 
     // --------------------------------------------------------------------------
@@ -738,8 +818,8 @@ class Subscription
     /**
      * Immediately terminate a subscription
      *
-     * @param Instance    $oIbonstance The subscription instance to terminate
-     * @param string|null $sReason     The reason for termination
+     * @param Instance    $oInstance The subscription instance to terminate
+     * @param string|null $sReason   The reason for termination
      *
      * @return Instance
      */
@@ -777,7 +857,7 @@ class Subscription
             throw new SubscriptionException(
                 sprintf(
                     'Failed to modify subscription. %s',
-                    $oModel->lastError()
+                    $this->oInstanceModel->lastError()
                 )
             );
         }

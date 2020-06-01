@@ -68,8 +68,11 @@ class Renew extends Base
         );
         $aRenewals = $this->getRenewals($oDate);
 
-        if ($this->confirmRenewals($aRenewals)) {
+        if (!empty($aRenewals) && $this->confirmRenewals($aRenewals)) {
             $this->processRenewals($aRenewals, $oDate);
+
+        } elseif (empty($aRenewals)) {
+            $oOutput->writeln('No renewals to be processed');
         }
 
         //  And we're done!
@@ -141,8 +144,15 @@ class Renew extends Base
             try {
 
                 $this->oOutput->write('Renewing instance <info>#' . $oInstance->id . '</info>... ');
-                $oSubscription->renew($oInstance, $oWhen);
-                $this->oOutput->writeln('<info>done</info>');
+                $oNewInstance = $oSubscription->renew($oInstance, false);
+                $this->oOutput->writeln(
+                    sprintf(
+                        '<info>success</info> – New Instance: #%s; Invoice: #%s %s',
+                        $oNewInstance->id,
+                        $oNewInstance->invoice()->id,
+                        $oNewInstance->invoice()->ref
+                    )
+                );
 
             } catch (InstanceShouldNotRenewException $e) {
 
@@ -211,15 +221,26 @@ class Renew extends Base
     protected function logAndTriggerEvent(
         \Exception $e,
         string $sEvent,
-        bool $bBothInstances = false
+        ?bool $bBothInstances = false
     ) {
         $this->oOutput->writeln(
             sprintf(
-                '<error>ERROR: (%s) %s </error>',
-                get_class($e),
-                $e->getMessage()
+                '<error>ERROR: %s (%s) </error>',
+                $e->getMessage(),
+                get_class($e)
             )
         );
+
+        $aPayload = $bBothInstances
+            ? [
+                is_callable([$e, 'getInstance']) ? $e->getInstance() : null,
+                is_callable([$e, 'getNewInstance']) ? $e->getNewInstance() : null,
+                $e,
+            ]
+            : [
+                is_callable([$e, 'getInstance']) ? $e->getInstance() : null,
+                $e,
+            ];
 
         /** @var Event $oEventService */
         $oEventService = Factory::service('Event');
@@ -227,9 +248,7 @@ class Renew extends Base
             ->trigger(
                 $sEvent,
                 Events::getEventNamespace(),
-                $bBothInstances
-                    ? [$e->getInstance(), $e->getNewInstance(), $e]
-                    : [$e->getInstance(), $e]
+                $aPayload
             );
     }
 }
