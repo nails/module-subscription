@@ -27,6 +27,7 @@ class Migration1 extends Base
     {
         $this->query('ALTER TABLE `{{NAILS_DB_PREFIX}}subscription_instance` ADD `previous_instance_id` INT(11) UNSIGNED NULL DEFAULT NULL AFTER `cancel_reason`;');
         $this->query('ALTER TABLE `{{NAILS_DB_PREFIX}}subscription_instance` ADD `next_instance_id` INT(11) UNSIGNED NULL DEFAULT NULL AFTER `previous_instance_id`;');
+        $this->query('ALTER TABLE `{{NAILS_DB_PREFIX}}subscription_instance` ADD `log_group` VARCHAR(50) NULL DEFAULT NULL AFTER `next_instance_id`;');
         $this->query('ALTER TABLE `{{NAILS_DB_PREFIX}}subscription_instance` ADD FOREIGN KEY (`previous_instance_id`) REFERENCES `{{NAILS_DB_PREFIX}}subscription_instance` (`id`) ON DELETE SET NULL;');
         $this->query('ALTER TABLE `{{NAILS_DB_PREFIX}}subscription_instance` ADD FOREIGN KEY (`next_instance_id`) REFERENCES `{{NAILS_DB_PREFIX}}subscription_instance` (`id`) ON DELETE SET NULL;');
     }

@@ -16,6 +16,7 @@ use DateTime;
 use Nails\Common\Exception\FactoryException;
 use Nails\Common\Exception\ModelException;
 use Nails\Common\Exception\ValidationException;
+use Nails\Common\Factory\Logger;
 use Nails\Common\Helper;
 use Nails\Currency\Resource\Currency;
 use Nails\Factory;
@@ -50,17 +51,76 @@ class Subscription
     /** @var \Nails\Invoice\Model\Invoice */
     protected $oInvoiceModel;
 
+    /** @var Logger */
+    protected $oLogger;
+
+    /** @var string */
+    protected $sLogGroup;
+
     // --------------------------------------------------------------------------
 
     /**
      * Subscription constructor.
      *
-     * @throws \Nails\Common\Exception\FactoryException
+     * @param \Nails\Subscription\Model\Instance|null $oInstanceModel The instance model to use
+     * @param \Nails\Invoice\Model\Invoice|null       $oInvoiceModel  The invoice model to use
+     * @param Logger|null                             $oLogger        The logger to use
+     *
+     * @throws FactoryException
      */
-    public function __construct()
+    public function __construct(
+        \Nails\Subscription\Model\Instance $oInstanceModel = null,
+        \Nails\Invoice\Model\Invoice $oInvoiceModel = null,
+        Logger $oLogger = null
+    ) {
+        $this->oInstanceModel = $oInstanceModel ?? Factory::model('Instance', Constants::MODULE_SLUG);
+        $this->oInvoiceModel  = $oInvoiceModel ?? Factory::model('Invoice', \Nails\Invoice\Constants::MODULE_SLUG);
+        $this->oLogger        = $oLogger ?? Factory::factory('Logger');
+
+        /** @var DateTime $oNow */
+        $oNow = Factory::factory('DateTime');
+        $this->oLogger->setFile('subscription-' . $oNow->format('Y-m-d') . '.php');
+
+        //  Set an initial log group
+        $this->setLogGroup(uniqid());
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Writes a line to the subscription log
+     *
+     * @param string $sLine The line to write
+     *
+     * @return $this
+     * @throws FactoryException
+     */
+    public function log(string $sLine = ''): self
     {
-        $this->oInstanceModel = Factory::model('Instance', Constants::MODULE_SLUG);
-        $this->oInvoiceModel  = Factory::model('Invoice', \Nails\Invoice\Constants::MODULE_SLUG);
+        if ($this->sLogGroup && $sLine) {
+            $sLine = sprintf(
+                '[LOG GROUP: %s] – %s',
+                $this->sLogGroup,
+                $sLine
+            );
+        }
+        $this->oLogger->line($sLine);
+        return $this;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Sets a string to group logs together
+     *
+     * @param string $sLogGroup The grouping string
+     *
+     * @return $this;
+     */
+    public function setLogGroup(string $sLogGroup): self
+    {
+        $this->sLogGroup = $sLogGroup;
+        return $this;
     }
 
     // --------------------------------------------------------------------------
@@ -101,11 +161,22 @@ class Subscription
 
         // --------------------------------------------------------------------------
 
+        $this
+            ->log('Creating a new subscription')
+            ->log('– Customer:   #' . $oCustomer->id)
+            ->log('– Package:    #' . $oPackage->id)
+            ->log('– Source:     #' . $oSource->id)
+            ->log('– Currency:   ' . $oCurrency->code)
+            ->log('– Start Date: ' . $oStart->format('Y-m-d H:i:s'));
+
+        // --------------------------------------------------------------------------
+
         /**
          * Check if the customer is already subscribed, if they are then we cannot continue.
          */
 
         if ($this->isSubscribed($oCustomer, $oStart)) {
+            $this->log('Aborting. Customer is already subscribed.');
             throw new AlreadySubscribedException(
                 sprintf(
                     'Customer #%s is already subscribed',
@@ -121,6 +192,7 @@ class Subscription
          */
         //  @todo (Pablo - 2020-02-18) - Calculate this; has the user had this package before (and paid for it)
         $bCanUseFreeTrial = true;
+        $this->log('User is able to use the package\'s free trial');
 
         // --------------------------------------------------------------------------
 
@@ -128,6 +200,7 @@ class Subscription
          * Calculate the various dates for the package. If it doesn't support a certain
          * feature (e.g. free trial) then those dates are 0 seconds long.
          */
+        $this->log('Calculating dates:');
         if ($bCanUseFreeTrial) {
             [$oFreeTrialStart, $oFreeTrialEnd] = $this->calculateFreeTrialDates($oPackage, $oStart);
         } else {
@@ -136,6 +209,14 @@ class Subscription
         }
         [$oSubscriptionStart, $oSubscriptionEnd] = $this->calculateSubscriptionDates($oPackage, $oFreeTrialEnd);
         [$oCoolingOffStart, $oCoolingOffEnd] = $this->calculateCoolingOffDates($oPackage, $oStart);
+
+        $this
+            ->log('– Free trial start:   ' . $oFreeTrialStart->format('Y-m-d H:i:s'))
+            ->log('– Free trial end:     ' . $oFreeTrialEnd->format('Y-m-d H:i:s'))
+            ->log('– Subscription start: ' . $oSubscriptionStart->format('Y-m-d H:i:s'))
+            ->log('– Subscription end:   ' . $oSubscriptionEnd->format('Y-m-d H:i:s'))
+            ->log('– Cooling off start:  ' . $oCoolingOffStart->format('Y-m-d H:i:s'))
+            ->log('– Cooling off end:    ' . $oCoolingOffEnd->format('Y-m-d H:i:s'));
 
         // --------------------------------------------------------------------------
 
@@ -175,6 +256,7 @@ class Subscription
 
         try {
 
+            $this->log('Payment flow: Begin');
             $this->chargeInvoice(
                 $oInstance,
                 $this->raiseInvoice(
@@ -188,9 +270,23 @@ class Subscription
             );
 
         } catch (RedirectRequiredException $e) {
+
+            $this
+                ->log('Payment flow: Caught Redirect')
+                ->log('– ' . $e->getRedirectUrl());
+
             throw $e;
 
         } catch (\Throwable $e) {
+
+            $this
+                ->log('Payment flow: Uncaught exception')
+                ->log('– Class: ' . get_class($e))
+                ->log('– Error: ' . $e->getMessage())
+                ->log('– Code:  ' . $e->getCode())
+                ->log('– File:  ' . $e->getFile())
+                ->log('– Line:  ' . $e->getLine());
+
             $this->terminate(
                 $oInstance,
                 sprintf(
@@ -201,6 +297,9 @@ class Subscription
                 )
             );
             throw $e;
+
+        } finally {
+            $this->log('Payment flow: finished');
         }
 
         // --------------------------------------------------------------------------
@@ -304,7 +403,14 @@ class Subscription
      */
     protected function validatePackage(Package $oPackage, Currency $oCurrency): Subscription
     {
+        $this->log(sprintf(
+            'Validating package #%s (%s)',
+            $oPackage->id,
+            $oPackage->label
+        ));
+
         if (!$oPackage->isActive()) {
+            $this->log('Invalid package: Not currently active');
             throw new ValidationException(
                 sprintf(
                     'Package with ID #%s is not currently active',
@@ -312,6 +418,7 @@ class Subscription
                 )
             );
         } elseif (!$oPackage->supportsCurrency($oCurrency)) {
+            $this->log('Invalid package: Does not support payments in ' . $oCurrency->code);
             throw new ValidationException(
                 sprintf(
                     'Package with ID #%s does not support payments in %s',
@@ -338,17 +445,25 @@ class Subscription
      */
     protected function validateSource(?DateTime $oStart, Source $oSource, Customer $oCustomer): Subscription
     {
+        $this->log(sprintf(
+            'Validating source #%s',
+            $oSource->id
+        ));
+
         $oStart = $oStart ?? Factory::factory('DateTime');
 
         if ($oSource->customer_id !== $oCustomer->id) {
+            $this->log('Invalid source: Source does not belong to customer');
             throw new ValidationException(
                 'Invalid payment source'
             );
         } elseif ($oSource->isExpired()) {
+            $this->log('Invalid source: Source has expired');
             throw new ValidationException(
                 'Payment source is expired'
             );
         } elseif ($oSource->isExpired($oStart)) {
+            $this->log('Invalid source: Source will have expired at time of payment');
             throw new ValidationException(
                 sprintf(
                     'Payment source expires %s; subscription will be billed %s',
@@ -395,7 +510,8 @@ class Subscription
         Instance $oPreviousInstance = null
     ): Instance {
 
-        return $this->oInstanceModel->create(
+        $this->log('Creating new instance:');
+        $oInstance = $this->oInstanceModel->create(
             [
                 'customer_id'             => $oCustomer->id,
                 'package_id'              => $oPackage->id,
@@ -404,14 +520,23 @@ class Subscription
                 'date_free_trial_start'   => $oFreeTrialStart->format('Y-m-d H:i:s'),
                 'date_free_trial_end'     => $oFreeTrialEnd->format('Y-m-d H:i:s'),
                 'date_subscription_start' => $oSubscriptionStart->format('Y-m-d H:i:s'),
-                'date_subscription_end'   => $oSubscriptionEnd->format('Y-m-d H:i:s'),
+                'date_subscription_end'   => $oSubscriptionEnd->format('Y-m-d 23:59:59'),
                 'date_cooling_off_start'  => $oCoolingOffStart->format('Y-m-d H:i:s'),
                 'date_cooling_off_end'    => $oCoolingOffEnd->format('Y-m-d H:i:s'),
                 'is_automatic_renew'      => $oPackage->supports_automatic_renew,
                 'previous_instance_id'    => $oPreviousInstance->id ?? null,
+                'log_group'               => $this->sLogGroup,
             ],
             true
         );
+
+        if ($oInstance) {
+            $this->log('– ID: #' . $oInstance->id);
+        } else {
+            $this->log('FAILED: ' . $this->oInstanceModel->lastError());
+        }
+
+        return $oInstance;
     }
 
     // --------------------------------------------------------------------------
@@ -430,6 +555,8 @@ class Subscription
         bool $bIsNormalPrice = true
     ): Invoice\Item {
 
+        $this->log('– Generating line item');
+
         $oPackage  = $oInstance->package();
         $oCurrency = $oInstance->currency;
 
@@ -441,7 +568,7 @@ class Subscription
         $oItem
             ->setLabel(
                 sprintf(
-                    'Susbcription: %s',
+                    'Subscription: %s',
                     $oPackage->label
                 )
             )
@@ -456,6 +583,12 @@ class Subscription
                 $oCallbackData
                     ->setInstance($oInstance)
             );
+
+        $this->log('– Label:         ' . $oItem->getLabel());
+        $this->log('– Unit:          ' . $oItem->getUnit());
+        $this->log('– Quantity:      ' . $oItem->getQuantity());
+        $this->log('– Unit Cost:     ' . $oItem->getUnitCost());
+        $this->log('– Callback Data: ' . json_encode($oItem->getCallbackData()));
 
         return $oItem;
     }
@@ -478,6 +611,8 @@ class Subscription
         bool $bIsNormalPrice = true
     ): \Nails\Invoice\Resource\Invoice {
 
+        $this->log('Raising a new invoice for instance #' . $oInstance->id);
+
         /** @var Invoice $oInvoiceBuilder */
         $oInvoiceBuilder = Factory::factory('Invoice', \Nails\Invoice\Constants::MODULE_SLUG);
 
@@ -494,6 +629,10 @@ class Subscription
             )
             ->save();
 
+        $this->log(sprintf(
+            '– Associating invoice (#%s) with instance',
+            $oInvoice->id
+        ));
         $this->oInstanceModel->update(
             $oInstance->id,
             [
@@ -533,6 +672,13 @@ class Subscription
         bool $bForcePaymentNow = false
     ): void {
 
+        $this->log('Charging invoice #' . $oInvoice->id);
+        $this->log('– Source:            ' . $oSource->id);
+        $this->log('– Customer Present:  ' . json_encode($bCustomerPresent));
+        $this->log('– Success URL:       ' . $sSuccessUrl);
+        $this->log('– Error URL:         ' . $sErrorUrl);
+        $this->log('– Force Payment Now: ' . json_encode($bForcePaymentNow));
+
         /** @var \DateTime $oNow */
         $oNow = Factory::factory('DateTime');
 
@@ -540,6 +686,8 @@ class Subscription
             ($bForcePaymentNow || $oNow->format('Y-m-d') === $oInvoice->due->format('Y-m-d'))
             && $oInvoice->totals->raw->grand
         ) {
+
+            $this->log('Invoice to be paid now, building charge request');
 
             /** @var ChargeRequest $oChargeRequest */
             $oChargeRequest = Factory::factory('ChargeRequest', \Nails\Invoice\Constants::MODULE_SLUG);
@@ -549,25 +697,60 @@ class Subscription
                 ->setErrorUrl($sErrorUrl)
                 ->setSource($oSource);
 
+            $this->log('Executing charge request...');
+
             /** @var ChargeResponse $oChargeResponse */
             $oChargeResponse = $oInvoice
                 ->charge($oChargeRequest);
 
+            $this->log('Charge request executed successfully.');
+            $this->log('Payment ID is #' . $oChargeResponse->getPayment()->id);
+
             if ($oChargeResponse->isRedirect()) {
 
-                throw (new RedirectRequiredException())
+                $this->log(sprintf(
+                    'Payment is incomplete: Redirect required (%s)',
+                    $oChargeResponse->getRedirectUrl()
+                ));
+
+                throw (new RedirectRequiredException('A redirect is required to complete payment.'))
                     ->setRedirectUrl($oChargeResponse->getRedirectUrl())
                     ->setInstance($oInstance);
 
             } elseif ($oChargeResponse->isFailed()) {
 
+                $this->log(sprintf(
+                    'Payment is incomplete: Failed (%s)',
+                    $oChargeResponse->getErrorMessage()
+                ));
+
                 throw (new PaymentFailedException($oChargeResponse->getErrorMessage()))
                     ->setUserMessage($oChargeResponse->getErrorMessageUser())
                     ->setErrorCode($oChargeResponse->getErrorCode());
+
+            } elseif ($oChargeResponse->isComplete()) {
+
+                $this->log(sprintf(
+                    'Payment is complete: Gateway transaction ID: %s',
+                    $oChargeResponse->getPayment()->transaction_id
+                ));
+
+            } elseif ($oChargeResponse->isProcessing()) {
+
+                $this->log(sprintf(
+                    'Payments are processing: Gateway transaction ID: %s',
+                    $oChargeResponse->getPayment()->transaction_id
+                ));
             }
 
         } elseif (!$oInvoice->totals->raw->grand) {
+
+            $this->log('Invoice is zero-value; marking as paid');
             $this->oInvoiceModel->setPaid($oInvoice->id);
+
+        } else {
+
+            $this->log('Invoice is not due to be paid now.');
         }
     }
 
@@ -583,25 +766,47 @@ class Subscription
      */
     public function renew(Instance $oOldInstance, bool $bCustomerPresent): Instance
     {
-        $this
-            ->instanceShouldRenew($oOldInstance)
-            ->instanceCanRenew($oOldInstance);
-
         $oCustomer = $oOldInstance->customer();
         $oSource   = $oOldInstance->source();
         $oPackage  = $oOldInstance->changeToPackage() ?: $oOldInstance->package();
 
         // --------------------------------------------------------------------------
 
+        $this
+            ->log('Renewing an existing instance')
+            ->log('– Instance:         #' . $oOldInstance->id)
+            ->log('– Customer:         #' . $oCustomer->id)
+            ->log('– Customer present: ' . json_encode($bCustomerPresent))
+            ->log('– Source:           #' . $oSource->id)
+            ->log('– New Package:      #' . $oPackage->id);
+
+        // --------------------------------------------------------------------------
+
+        $this
+            ->instanceShouldRenew($oOldInstance)
+            ->instanceCanRenew($oOldInstance);
+
+        // --------------------------------------------------------------------------
+
         /**
          * Calculate instance dates, cooling off period and free trials no longer apply
          */
+        $this->log('Calculating dates:');
+
         [$oSubscriptionStart, $oSubscriptionEnd] = $this->calculateSubscriptionDates(
             $oPackage,
             $oOldInstance->date_subscription_end->getDateTimeObject()
         );
         [$oFreeTrialStart, $oFreeTrialEnd] = [clone $oSubscriptionStart, clone $oSubscriptionStart];
         [$oCoolingOffStart, $oCoolingOffEnd] = [clone $oSubscriptionStart, clone $oSubscriptionStart];
+
+        $this
+            ->log('– Subscription start: ' . $oSubscriptionStart->format('Y-m-d H:i:s'))
+            ->log('– Subscription end:   ' . $oSubscriptionEnd->format('Y-m-d H:i:s'))
+            ->log('– Free trial start:   N/A (calculated as: ' . $oFreeTrialStart->format('Y-m-d H:i:s') . ')')
+            ->log('– Free trial end:     N/A (calculated as: ' . $oFreeTrialEnd->format('Y-m-d H:i:s') . ')')
+            ->log('– Cooling off start:  N/A (calculated as: ' . $oCoolingOffStart->format('Y-m-d H:i:s') . ')')
+            ->log('– Cooling off end:    N/A (calculated as: ' . $oCoolingOffEnd->format('Y-m-d H:i:s') . ')');
 
         // --------------------------------------------------------------------------
 
@@ -621,6 +826,7 @@ class Subscription
 
         try {
 
+            $this->log('Payment flow: Begin');
             $this->chargeInvoice(
                 $oNewInstance,
                 $this->raiseInvoice($oNewInstance),
@@ -636,19 +842,40 @@ class Subscription
         } catch (\Exception $e) {
 
             if ($e instanceof RedirectRequiredException) {
+
+                $this
+                    ->log('Payment flow: Caught Redirect')
+                    ->log('– ' . $e->getRedirectUrl());
+
                 throw (new RenewalException\InstanceFailedToRenewException($e->getMessage(), $e->getCode()))
                     ->setOriginalException($e)
                     ->setInstance($oOldInstance)
                     ->setNewInstance($oNewInstance);
 
             } elseif ($e instanceof PaymentFailedException) {
+
+                $this
+                    ->log('Payment flow: Caught payment failure')
+                    ->log('– ' . $e->getMessage());
+
                 throw (new RenewalException\InstanceFailedToRenewException($e->getMessage(), $e->getCode()))
                     ->setOriginalException($e)
                     ->setInstance($oOldInstance)
                     ->setNewInstance($oNewInstance);
             }
 
+            $this
+                ->log('Payment flow: Uncaught exception')
+                ->log('– Class: ' . get_class($e))
+                ->log('– Error: ' . $e->getMessage())
+                ->log('– Code:  ' . $e->getCode())
+                ->log('– File:  ' . $e->getFile())
+                ->log('– Line:  ' . $e->getLine());
+
             throw $e;
+
+        } finally {
+            $this->log('Payment flow: finished');
         }
     }
 
@@ -663,33 +890,61 @@ class Subscription
      * @throws ModelException
      * @throws RenewalException\InstanceFailedToRenewException
      */
-    public function confirmRenewal(Instance $oInstance)
+    public function confirmRenewal(Instance $oInstance): void
     {
+        $sOriginalLogGroup = $this->sLogGroup;
+
+        $this
+            ->setLogGroup($oInstance->log_group)
+            ->log('Confirming Renewal')
+            ->log('Instance: #' . $oInstance->id);
+
+        $this->log('Fetching associated invoice...');
         $oInvoice = $oInstance->invoice();
+
         if (empty($oInvoice)) {
+
+            $this
+                ->log('FAILED: Could not find associated invoice')
+                ->setLogGroup($sOriginalLogGroup);
+
             throw new RenewalException\InstanceFailedToRenewException(
                 'Could not find associated invoice'
             );
         }
+        $this->log('Invoice: #' . $oInstance->id);
 
-        if (!in_array($oInvoice->state->id, [
-            $this->oInvoiceModel::STATE_PAID,
-            $this->oInvoiceModel::STATE_PAID_PROCESSING,
-        ])) {
+        if (!$this->invoiceIsPaid($oInvoice)) {
+
+            $this
+                ->log('FAILED: Invoice has not been paid')
+                ->setLogGroup($sOriginalLogGroup);
+
             throw new RenewalException\InstanceFailedToRenewException(
                 'Associated invoice has not been paid'
             );
         }
 
+        $this->log('Fetching previous instance...');
         $oPreviousInstance = $oInstance->previousInstance();
+
         if (!empty($oPreviousInstance)) {
+
+            $this
+                ->log('– Previous instance: #' . $oInstance->id)
+                ->log('Linking previous instance with current instance');
+
             $this->oInstanceModel->update(
                 $oPreviousInstance->id,
                 [
                     'next_instance_id' => $oInstance->id,
                 ]
             );
+        } else {
+            $this->log('– No previous instance found');
         }
+
+        $this->setLogGroup($sOriginalLogGroup);
     }
 
     // --------------------------------------------------------------------------
@@ -706,6 +961,8 @@ class Subscription
      */
     protected function instanceShouldRenew(Instance $oInstance): self
     {
+        $this->log('Checking if instance should renew');
+
         if (!$oInstance->isAutomaticRenew()) {
             $e = new InstanceShouldNotRenewException(
                 'Instance is configured to not renew'
@@ -717,6 +974,7 @@ class Subscription
         }
 
         if (!empty($e)) {
+            $this->log('Instance should not renew: ' . $e->getMessage());
             $e->setInstance($oInstance);
             throw $e;
         }
@@ -735,7 +993,14 @@ class Subscription
      */
     protected function instanceCanRenew(Instance $oInstance): self
     {
+        $this->log('Checking if instance can renew');
+
         $oNewPackage = $oInstance->changeToPackage() ?: $oInstance->package();
+        $this->log(sprintf(
+            '– New package: #%s (%s)',
+            $oNewPackage->id,
+            $oNewPackage->label
+        ));
 
         try {
 
@@ -750,6 +1015,7 @@ class Subscription
                 $e
             );
             $e->setInstance($oInstance);
+            $this->log('Instance cannot renew: ' . $e->getMessage());
             throw $e;
         }
 
@@ -767,7 +1033,10 @@ class Subscription
      */
     public function cancel(Instance $oInstance, string $sReason = null): Instance
     {
+        $this->log('Cancelling instance: #' . $oInstance->id);
+
         if ($oInstance->isCancelled()) {
+            $this->log('FAILED: Instance is already cancelled');
             throw new SubscriptionException(
                 'Instance is already cancelled'
             );
@@ -797,7 +1066,10 @@ class Subscription
      */
     public function restore(Instance $oInstance): Instance
     {
+        $this->log('Restoring instance: #' . $oInstance->id);
+
         if (!$oInstance->isCancelled()) {
+            $this->log('FAILED: Instance is not in a cancelled state');
             throw new SubscriptionException(
                 'Instance is not in a cancelled state'
             );
@@ -825,6 +1097,10 @@ class Subscription
      */
     public function terminate(Instance $oInstance, string $sReason = null): Instance
     {
+        $this->log('Terminating instance: #' . $oInstance->id);
+        if ($sReason) {
+            $this->log('– Reason: ' . $sReason);
+        }
         /** @var \DateTime $oNow */
         $oNow = Factory::factory('DateTime');
 
@@ -853,7 +1129,13 @@ class Subscription
      */
     public function modify(Instance $oInstance, array $aData): Instance
     {
+        $this->log('Modifying instance: #' . $oInstance->id);
+        foreach ($aData as $sKey => $mValue) {
+            $this->log('– ' . $sKey . ': ' . json_encode($mValue));
+        }
+
         if (!$this->oInstanceModel->update($oInstance->id, $aData)) {
+            $this->log('FAILED: ' . $this->oInstanceModel->lastError());
             throw new SubscriptionException(
                 sprintf(
                     'Failed to modify subscription. %s',
@@ -883,14 +1165,22 @@ class Subscription
         bool $bImmediately = false
     ): Instance {
 
+        $this
+            ->log('Swapping an instance to a new package')
+            ->log('– Instance:         #' . $oInstance->id)
+            ->log('– New Package:      #' . $oNewPackage->id)
+            ->log('– Swap Immediately: ' . json_encode($bAutoRenew));
+
         if ($bImmediately) {
             //  @todo (Pablo - 2020-05-06) - Handle swapping immediately
+            $this->log('FAILED: Swapping immediately is not implemented');
             throw new SubscriptionException(
                 'Swapping a subscription immediately is not currently implemented'
             );
         }
 
         if (!$oNewPackage->isActive($oInstance->date_subscription_end->getDateTimeObject())) {
+            $this->log('FAILED: Desired package will not be active at time of renewal');
             throw new SubscriptionException(
                 'Desired package will not be active at time of renewal'
             );
@@ -925,6 +1215,11 @@ class Subscription
      */
     public function setAutoRenew(Instance $oInstance, bool $bAutoRenew): Instance
     {
+        $this
+            ->log('Setting instance\'s auto renew status')
+            ->log('– Instance: #' . $oInstance->id)
+            ->log('– Status:   ' . json_encode($bAutoRenew));
+
         return $this->modify(
             $oInstance,
             [
@@ -948,8 +1243,10 @@ class Subscription
         $oInstance = $this->get($oCustomer, $oWhen);
         if (empty($oInstance)) {
             return false;
+
         } elseif ($oInstance->isInFreeTrial()) {
             return true;
+
         } else {
 
             $oInvoice = $oInstance->invoice();
@@ -957,14 +1254,8 @@ class Subscription
                 return true;
             }
 
-            switch ($oInvoice->state->id) {
-                case $this->oInvoiceModel::STATE_PAID:
-                case $this->oInvoiceModel::STATE_PAID_PROCESSING:
-                    return true;
-            }
+            return $this->invoiceIsPaid($oInvoice);
         }
-
-        return false;
     }
 
     // --------------------------------------------------------------------------
@@ -1069,5 +1360,22 @@ class Subscription
             $oWhen->format('Y-m-d H:i:s'),
             $sColumn
         );
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * etermines whether an invoice is considered paid or not
+     *
+     * @param \Nails\Invoice\Resource\Invoice $oInvoice The invoice to check
+     *
+     * @return bool
+     */
+    protected function invoiceIsPaid(\Nails\Invoice\Resource\Invoice $oInvoice): bool
+    {
+        return in_array($oInvoice->state->id, [
+            $this->oInvoiceModel::STATE_PAID,
+            $this->oInvoiceModel::STATE_PAID_PROCESSING,
+        ]);
     }
 }

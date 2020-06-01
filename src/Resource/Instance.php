@@ -100,6 +100,9 @@ class Instance extends Entity
     /** @var self */
     public $next_instance;
 
+    /** @var string */
+    public $log_group;
+
     // --------------------------------------------------------------------------
 
     /**

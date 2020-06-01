@@ -143,6 +143,16 @@ class Renew extends Base
         foreach ($aInstances as $oInstance) {
             try {
 
+                /**
+                 * Set a string to group all the lgos for this particular renewal together.
+                 * This allows for easier log searching as you can find all logs which
+                 * apply to a particular action by grep'ing by the log group
+                 */
+                $oSubscription
+                    ->setLogGroup(uniqid())
+                    ->log()
+                    ->log('Beginning Renewal of Instance #' . $oInstance->id);
+
                 $this->oOutput->write('Renewing instance <info>#' . $oInstance->id . '</info>... ');
                 $oNewInstance = $oSubscription->renew($oInstance, false);
                 $this->oOutput->writeln(
@@ -165,7 +175,7 @@ class Renew extends Base
                  * or a "you have been downgraded" email to the customer.
                  */
 
-                $this->logAndTriggerEvent($e, Events::RENEWAL_INSTANCE_SHOULD_NOT_RENEW, false);
+                $this->logAndTriggerEvent($oSubscription, $e, Events::RENEWAL_INSTANCE_SHOULD_NOT_RENEW, false);
 
             } catch (InstanceCannotRenewException $e) {
 
@@ -175,7 +185,7 @@ class Renew extends Base
                  * their card is missing, or has expired.
                  */
 
-                $this->logAndTriggerEvent($e, Events::RENEWAL_INSTANCE_CANNOT_RENEW, false);
+                $this->logAndTriggerEvent($oSubscription, $e, Events::RENEWAL_INSTANCE_CANNOT_RENEW, false);
 
             } catch (InstanceFailedToRenewException $e) {
 
@@ -185,7 +195,7 @@ class Renew extends Base
                  * reason for failure can be inferred from the exception.
                  */
 
-                $this->logAndTriggerEvent($e, Events::RENEWAL_INSTANCE_FAILED_TO_RENEW, true);
+                $this->logAndTriggerEvent($oSubscription, $e, Events::RENEWAL_INSTANCE_FAILED_TO_RENEW, true);
 
             } catch (\Exception $e) {
 
@@ -195,11 +205,16 @@ class Renew extends Base
                  * to the error handler, but instruct it not to halt execution.
                  */
 
+                $this->logAndTriggerEvent($oSubscription, $e, Events::RENEWAL_UNCAUGHT_EXCEPTION, true);
+
                 /** @var ErrorHandler $oErrorHandler */
                 $oErrorHandler = Factory::service('ErrorHandler');
                 call_user_func($oErrorHandler::getDriverClass() . '::exception', $e, false);
 
-                $this->logAndTriggerEvent($e, Events::RENEWAL_UNCAUGHT_EXCEPTION, true);
+            } finally {
+                $oSubscription
+                    ->log('Completed Renewal of Instance #' . $oInstance->id)
+                    ->log();
             }
         }
 
@@ -211,25 +226,29 @@ class Renew extends Base
     /**
      * Utility method which logs an exception to the output and triggers an event
      *
-     * @param \Exception $e              The exception which was caught
-     * @param string     $sEvent         The event to fire
-     * @param bool       $bBothInstances Whether to include both instances in the event data
+     * @param Subscription $oSubscription  The subscriptions ervice
+     * @param \Exception   $e              The exception which was caught
+     * @param string       $sEvent         The event to fire
+     * @param bool         $bBothInstances Whether to include both instances in the event data
      *
      * @throws NailsException
      * @throws \ReflectionException
      */
     protected function logAndTriggerEvent(
+        Subscription $oSubscription,
         \Exception $e,
         string $sEvent,
         ?bool $bBothInstances = false
     ) {
-        $this->oOutput->writeln(
-            sprintf(
-                '<error>ERROR: %s (%s) </error>',
-                $e->getMessage(),
-                get_class($e)
-            )
+
+        $sLine = sprintf(
+            'ERROR: %s (%s)',
+            $e->getMessage(),
+            get_class($e)
         );
+
+        $oSubscription->log($sLine);
+        $this->oOutput->writeln('<error>' . $sLine . '</error>');
 
         $aPayload = $bBothInstances
             ? [
@@ -241,6 +260,12 @@ class Renew extends Base
                 is_callable([$e, 'getInstance']) ? $e->getInstance() : null,
                 $e,
             ];
+
+        $oSubscription->log(sprintf(
+            'Triggering Event: %s (%s)',
+            $sEvent,
+            Events::getEventNamespace()
+        ));
 
         /** @var Event $oEventService */
         $oEventService = Factory::service('Event');
