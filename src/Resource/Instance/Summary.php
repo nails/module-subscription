@@ -204,6 +204,15 @@ class Summary extends Resource
             case Package::BILLING_PERIOD_YEAR:
                 return 'annually';
                 break;
+
+            default:
+                throw new \InvalidArgumentException(
+                    sprintf(
+                        '"%s" is not a supported billing period',
+                        $sBillingPeriod
+                    )
+                );
+                break;
         }
     }
 

@@ -79,6 +79,18 @@ class Instance extends Base
                 'model'     => 'Invoice',
                 'provider'  => Invoice\Constants::MODULE_SLUG,
                 'id_column' => 'invoice_id',
+            ])
+            ->addExpandableField([
+                'trigger'   => 'previous_instance',
+                'model'     => 'Instance',
+                'provider'  => Constants::MODULE_SLUG,
+                'id_column' => 'previous_instance_id',
+            ])
+            ->addExpandableField([
+                'trigger'   => 'next_instance',
+                'model'     => 'Instance',
+                'provider'  => Constants::MODULE_SLUG,
+                'id_column' => 'next_instance_id',
             ]);
     }
 }

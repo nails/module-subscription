@@ -38,28 +38,35 @@ return [
         },
     ],
     'resources' => [
-        'Instance'        => function ($mObj): Resource\Instance {
+        'Instance'             => function ($mObj): Resource\Instance {
             if (class_exists('\App\Subscription\Resource\Instance')) {
                 return new \App\Subscription\Resource\Instance($mObj);
             } else {
                 return new Resource\Instance($mObj);
             }
         },
-        'InstanceSummary' => function ($mObj): Resource\Instance\Summary {
+        'InstanceCallbackData' => function (): Resource\Instance\CallbackData {
+            if (class_exists('\App\Subscription\Resource\Instance\CallbackData')) {
+                return new \App\Subscription\Resource\Instance\CallbackData();
+            } else {
+                return new Resource\Instance\CallbackData();
+            }
+        },
+        'InstanceSummary'      => function ($mObj): Resource\Instance\Summary {
             if (class_exists('\App\Subscription\Resource\Instance\Summary')) {
                 return new \App\Subscription\Resource\Instance\Summary($mObj);
             } else {
                 return new Resource\Instance\Summary($mObj);
             }
         },
-        'Package'         => function ($mObj): Resource\Package {
+        'Package'              => function ($mObj): Resource\Package {
             if (class_exists('\App\Subscription\Resource\Package')) {
                 return new \App\Subscription\Resource\Package($mObj);
             } else {
                 return new Resource\Package($mObj);
             }
         },
-        'PackageCost'     => function ($mObj): Resource\Package\Cost {
+        'PackageCost'          => function ($mObj): Resource\Package\Cost {
             if (class_exists('\App\Subscription\Resource\Package\Cost')) {
                 return new \App\Subscription\Resource\Package\Cost($mObj);
             } else {
