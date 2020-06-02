@@ -1186,7 +1186,7 @@ class Subscription
             ->log('Swapping an instance to a new package')
             ->log('– Instance:         #' . $oInstance->id)
             ->log('– New Package:      #' . $oNewPackage->id)
-            ->log('– Swap Immediately: ' . json_encode($bAutoRenew));
+            ->log('– Swap Immediately: ' . json_encode($bImmediately));
 
         if ($bImmediately) {
             //  @todo (Pablo - 2020-05-06) - Handle swapping immediately

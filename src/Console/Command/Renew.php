@@ -129,11 +129,10 @@ class Renew extends Base
      * Processes each renewal
      *
      * @param Instance[] $aInstances
-     * @param \DateTime  $oWhen
      *
      * @throws \Nails\Common\Exception\FactoryException
      */
-    protected function processRenewals(array $aInstances, \DateTime $oWhen): self
+    protected function processRenewals(array $aInstances): self
     {
         $this->oOutput->writeln('');
 

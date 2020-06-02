@@ -159,7 +159,7 @@ class Summary extends Resource
             'term'      => $oPackage->billing_period,
             'termHuman' => $this->getHumanBillingPeriod($oPackage->billing_period),
             //  @todo (Pablo - 2020-05-01) - Handle initial pricing
-            'amount'    => $oCost->price_normal->formatted,
+            'amount'    => $oCost->price_normal->formatted ?? 'nothing',
         ];
     }
 
