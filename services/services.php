@@ -22,6 +22,13 @@ return [
                 return new Model\Instance();
             }
         },
+        'Log'         => function (): Model\Log {
+            if (class_exists('\App\Subscription\Model\Log')) {
+                return new \App\Subscription\Model\Log();
+            } else {
+                return new Model\Log();
+            }
+        },
         'Package'     => function (): Model\Package {
             if (class_exists('\App\Subscription\Model\Package')) {
                 return new \App\Subscription\Model\Package();
@@ -57,6 +64,13 @@ return [
                 return new \App\Subscription\Resource\Instance\Summary($mObj);
             } else {
                 return new Resource\Instance\Summary($mObj);
+            }
+        },
+        'Log'                  => function ($mObj): Resource\Log {
+            if (class_exists('\App\Subscription\Resource\Log')) {
+                return new \App\Subscription\Resource\Log($mObj);
+            } else {
+                return new Resource\Log($mObj);
             }
         },
         'Package'              => function ($mObj): Resource\Package {

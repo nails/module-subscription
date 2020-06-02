@@ -51,6 +51,9 @@ class Subscription
     /** @var \Nails\Invoice\Model\Invoice */
     protected $oInvoiceModel;
 
+    /** @var \Nails\Invoice\Model\Log */
+    protected $oLogModel;
+
     /** @var Logger */
     protected $oLogger;
 
@@ -64,6 +67,7 @@ class Subscription
      *
      * @param \Nails\Subscription\Model\Instance|null $oInstanceModel The instance model to use
      * @param \Nails\Invoice\Model\Invoice|null       $oInvoiceModel  The invoice model to use
+     * @param \Nails\Invoice\Model\Log|null           $oLogModel      The log model to use
      * @param Logger|null                             $oLogger        The logger to use
      *
      * @throws FactoryException
@@ -71,10 +75,12 @@ class Subscription
     public function __construct(
         \Nails\Subscription\Model\Instance $oInstanceModel = null,
         \Nails\Invoice\Model\Invoice $oInvoiceModel = null,
+        \Nails\Invoice\Model\Log $oLogModel = null,
         Logger $oLogger = null
     ) {
         $this->oInstanceModel = $oInstanceModel ?? Factory::model('Instance', Constants::MODULE_SLUG);
         $this->oInvoiceModel  = $oInvoiceModel ?? Factory::model('Invoice', \Nails\Invoice\Constants::MODULE_SLUG);
+        $this->oLogModel      = $oLogModel ?? Factory::model('Log', Constants::MODULE_SLUG);
         $this->oLogger        = $oLogger ?? Factory::factory('Logger');
 
         /** @var DateTime $oNow */
@@ -97,14 +103,25 @@ class Subscription
      */
     public function log(string $sLine = ''): self
     {
-        if ($this->sLogGroup && $sLine) {
-            $sLine = sprintf(
-                '[LOG GROUP: %s] – %s',
-                $this->sLogGroup,
-                $sLine
+        $sLine = trim($sLine);
+
+        $this
+            ->oLogger
+            ->line(
+                $this->sLogGroup
+                    ? sprintf('[LOG GROUP: %s] – %s', $this->sLogGroup, $sLine)
+                    : $sLine
             );
+
+        if (!empty($sLine)) {
+            $this
+                ->oLogModel
+                ->create([
+                    'log_group' => $this->sLogGroup,
+                    'log'       => $sLine,
+                ]);
         }
-        $this->oLogger->line($sLine);
+
         return $this;
     }
 
