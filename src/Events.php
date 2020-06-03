@@ -28,6 +28,13 @@ use Nails\Subscription\Resource;
 class Events extends Base
 {
     /**
+     * Fired when the first instance is created in a subscription
+     *
+     * @param Resource\Instance $oInstance The instance which was created
+     */
+    const CREATE_FIRST_INSTANCE = 'CREATE_FIRST_INSTANCE';
+
+    /**
      * Fired when an instance renewal is processed but the renewal should not happen
      *
      * @param Resource\Instance               $oInstance  The instance being renewed

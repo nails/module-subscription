@@ -150,7 +150,7 @@ class Renew extends Base
                 $oSubscription
                     ->setLogGroup(uniqid())
                     ->log()
-                    ->log('Beginning Renewal of Instance #' . $oInstance->id);
+                    ->log('[CONSOLE] Beginning Renewal of Instance #' . $oInstance->id);
 
                 $this->oOutput->write('Renewing instance <info>#' . $oInstance->id . '</info>... ');
                 $oNewInstance = $oSubscription->renew($oInstance, false);
@@ -163,56 +163,62 @@ class Renew extends Base
                     )
                 );
 
-            } catch (InstanceShouldNotRenewException $e) {
+            } catch (\Exception $e) {
+
+                $this->logException($oSubscription, $e);
 
                 /**
+                 * Behave depending on the exception caught:
+                 *
+                 * Caught: InstanceShouldNotRenewException
+                 * ---------------------------------------
                  * Instances which fire this flavour of exception should not have
                  * any form of renewal attempted. This isn't necessrily an error,
                  * it could be the instance has been configured not to renew. We
                  * want to fire an event anyway to let the app decide how it wishes
                  * to handle this scenario. e.g. send a "your subscription has ended"
                  * or a "you have been downgraded" email to the customer.
-                 */
-
-                $this->logAndTriggerEvent($oSubscription, $e, Events::RENEWAL_INSTANCE_SHOULD_NOT_RENEW, false);
-
-            } catch (InstanceCannotRenewException $e) {
-
-                /**
+                 *
+                 *
+                 * Caught: InstanceCannotRenewException
+                 * ------------------------------------
                  * Instances which fire this flavour of exception want to rewnew,
                  * but can't due to knowledge that the renewal will fail, e.g.
                  * their card is missing, or has expired.
-                 */
-
-                $this->logAndTriggerEvent($oSubscription, $e, Events::RENEWAL_INSTANCE_CANNOT_RENEW, false);
-
-            } catch (InstanceFailedToRenewException $e) {
-
-                /**
+                 *
+                 *
+                 * Caught: InstanceFailedToRenewException
+                 * --------------------------------------
                  * The system attempted to process the renewal, but failed (most
                  * likely due to payment failure). Details about the specific
                  * reason for failure can be inferred from the exception.
-                 */
-
-                $this->logAndTriggerEvent($oSubscription, $e, Events::RENEWAL_INSTANCE_FAILED_TO_RENEW, true);
-
-            } catch (\Exception $e) {
-
-                /**
+                 *
+                 *
+                 * Caught: Exception
+                 * -----------------
                  * Something unexpected happened. We don't want to stop the renewal
                  * loop, but we do need to do something with this information. Offload
                  * to the error handler, but instruct it not to halt execution.
                  */
 
-                $this->logAndTriggerEvent($oSubscription, $e, Events::RENEWAL_UNCAUGHT_EXCEPTION, true);
+                $aCatchExceptions = [
+                    InstanceShouldNotRenewException::class,
+                    InstanceCannotRenewException::class,
+                    InstanceFailedToRenewException::class,
+                ];
 
-                /** @var ErrorHandler $oErrorHandler */
-                $oErrorHandler = Factory::service('ErrorHandler');
-                call_user_func($oErrorHandler::getDriverClass() . '::exception', $e, false);
+                if (!in_array(get_class($e), $aCatchExceptions)) {
+
+                    $this->triggerEvent($oSubscription, $e, Events::RENEWAL_UNCAUGHT_EXCEPTION, true);
+
+                    /** @var ErrorHandler $oErrorHandler */
+                    $oErrorHandler = Factory::service('ErrorHandler');
+                    call_user_func($oErrorHandler::getDriverClass() . '::exception', $e, false);
+                }
 
             } finally {
                 $oSubscription
-                    ->log('Completed Renewal of Instance #' . $oInstance->id)
+                    ->log('[CONSOLE] Completed Renewal of Instance #' . $oInstance->id)
                     ->log();
             }
         }
@@ -233,12 +239,10 @@ class Renew extends Base
      * @throws NailsException
      * @throws \ReflectionException
      */
-    protected function logAndTriggerEvent(
+    protected function logException(
         Subscription $oSubscription,
-        \Exception $e,
-        string $sEvent,
-        ?bool $bBothInstances = false
-    ) {
+        \Exception $e
+    ): self {
 
         $sLine = sprintf(
             'ERROR: %s (%s)',
@@ -246,8 +250,33 @@ class Renew extends Base
             get_class($e)
         );
 
-        $oSubscription->log($sLine);
+        $oSubscription->log('[CONSOLE] ' . $sLine);
         $this->oOutput->writeln('<error>' . $sLine . '</error>');
+
+        return $this;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Triggers a particular event
+     *
+     * @param Subscription $oSubscription  The subscription service
+     * @param \Exception   $e              The exception thrown
+     * @param string       $sEvent         The event to trigger
+     * @param bool|null    $bBothInstances Whether to pass both instances as the event payload
+     *
+     * @return $this
+     * @throws NailsException
+     * @throws \Nails\Common\Exception\FactoryException
+     * @throws \ReflectionException
+     */
+    protected function triggerEvent(
+        Subscription $oSubscription,
+        \Exception $e,
+        string $sEvent,
+        ?bool $bBothInstances = false
+    ): self {
 
         $aPayload = $bBothInstances
             ? [
@@ -261,7 +290,7 @@ class Renew extends Base
             ];
 
         $oSubscription->log(sprintf(
-            'Triggering Event: %s (%s)',
+            '[CONSOLE] Triggering Event: %s (%s)',
             $sEvent,
             Events::getEventNamespace()
         ));
@@ -274,5 +303,7 @@ class Renew extends Base
                 Events::getEventNamespace(),
                 $aPayload
             );
+
+        return $this;
     }
 }

@@ -18,6 +18,7 @@ use Nails\Common\Exception\ModelException;
 use Nails\Common\Exception\ValidationException;
 use Nails\Common\Factory\Logger;
 use Nails\Common\Helper;
+use Nails\Common\Service\Event;
 use Nails\Currency\Resource\Currency;
 use Nails\Factory;
 use Nails\Invoice\Exception\InvoiceException;
@@ -28,6 +29,7 @@ use Nails\Invoice\Factory\Invoice;
 use Nails\Invoice\Resource\Customer;
 use Nails\Invoice\Resource\Source;
 use Nails\Subscription\Constants;
+use Nails\Subscription\Events;
 use Nails\Subscription\Exception\AlreadySubscribedException;
 use Nails\Subscription\Exception\PaymentFailedException;
 use Nails\Subscription\Exception\RedirectRequiredException;
@@ -108,7 +110,7 @@ class Subscription
         $this
             ->oLogger
             ->line(
-                $this->sLogGroup
+                $this->sLogGroup && $sLine
                     ? sprintf('[LOG GROUP: %s] – %s', $this->sLogGroup, $sLine)
                     : $sLine
             );
@@ -273,18 +275,23 @@ class Subscription
 
         try {
 
-            $this->log('Payment flow: Begin');
-            $this->chargeInvoice(
-                $oInstance,
-                $this->raiseInvoice(
+            $this
+                ->log('Payment flow: Begin')
+                ->chargeInvoice(
                     $oInstance,
-                    true //  @todo (Pablo - 2020-02-20) - Determine what price to charge
-                ),
-                $oSource,
-                $bCustomerPresent,
-                $sSuccessUrl,
-                $sErrorUrl
-            );
+                    $this->raiseInvoice(
+                        $oInstance,
+                        true //  @todo (Pablo - 2020-02-20) - Determine what price to charge
+                    ),
+                    $oSource,
+                    $bCustomerPresent,
+                    $sSuccessUrl,
+                    $sErrorUrl
+                )
+                ->triggerEvent(
+                    Events::CREATE_FIRST_INSTANCE,
+                    [$oInstance]
+                );
 
         } catch (RedirectRequiredException $e) {
 
@@ -687,7 +694,7 @@ class Subscription
         string $sSuccessUrl = '',
         string $sErrorUrl = '',
         bool $bForcePaymentNow = false
-    ): void {
+    ): self {
 
         $this->log('Charging invoice #' . $oInvoice->id);
         $this->log('– Source:            ' . $oSource->id);
@@ -769,6 +776,8 @@ class Subscription
 
             $this->log('Invoice is not due to be paid now.');
         }
+
+        return $this;
     }
 
     // --------------------------------------------------------------------------
@@ -799,9 +808,32 @@ class Subscription
 
         // --------------------------------------------------------------------------
 
-        $this
-            ->instanceShouldRenew($oOldInstance)
-            ->instanceCanRenew($oOldInstance);
+        try {
+
+            $this
+                ->instanceShouldRenew($oOldInstance)
+                ->instanceCanRenew($oOldInstance);
+
+        } catch (InstanceShouldNotRenewException $e) {
+
+            $this
+                ->triggerEvent(
+                    Events::RENEWAL_INSTANCE_SHOULD_NOT_RENEW,
+                    [$oOldInstance, $e]
+                );
+
+            throw $e;
+
+        } catch (InstanceCannotRenewException $e) {
+
+            $this
+                ->triggerEvent(
+                    Events::RENEWAL_INSTANCE_CANNOT_RENEW,
+                    [$oOldInstance, $e]
+                );
+
+            throw $e;
+        }
 
         // --------------------------------------------------------------------------
 
@@ -843,16 +875,21 @@ class Subscription
 
         try {
 
-            $this->log('Payment flow: Begin');
-            $this->chargeInvoice(
-                $oNewInstance,
-                $this->raiseInvoice($oNewInstance),
-                $oNewInstance->source(),
-                $bCustomerPresent,
-                '',
-                '',
-                true
-            );
+            $this
+                ->log('Payment flow: Begin')
+                ->chargeInvoice(
+                    $oNewInstance,
+                    $this->raiseInvoice($oNewInstance),
+                    $oNewInstance->source(),
+                    $bCustomerPresent,
+                    '',
+                    '',
+                    true
+                )
+                ->triggerEvent(
+                    Events::RENEWAL_INSTANCE_RENEWED,
+                    [$oNewInstance]
+                );
 
             return $oNewInstance;
 
@@ -864,10 +901,16 @@ class Subscription
                     ->log('Payment flow: Caught Redirect')
                     ->log('– ' . $e->getRedirectUrl());
 
-                throw (new RenewalException\InstanceFailedToRenewException($e->getMessage(), $e->getCode()))
+                $e = (new RenewalException\InstanceFailedToRenewException($e->getMessage(), $e->getCode(), $e))
                     ->setOriginalException($e)
                     ->setInstance($oOldInstance)
                     ->setNewInstance($oNewInstance);
+
+                $this
+                    ->triggerEvent(
+                        Events::RENEWAL_INSTANCE_FAILED_TO_RENEW,
+                        [$oOldInstance, $oNewInstance, $e]
+                    );
 
             } elseif ($e instanceof PaymentFailedException) {
 
@@ -875,19 +918,28 @@ class Subscription
                     ->log('Payment flow: Caught payment failure')
                     ->log('– ' . $e->getMessage());
 
-                throw (new RenewalException\InstanceFailedToRenewException($e->getMessage(), $e->getCode()))
+                $e = (new RenewalException\InstanceFailedToRenewException($e->getMessage(), $e->getCode(), $e))
                     ->setOriginalException($e)
                     ->setInstance($oOldInstance)
                     ->setNewInstance($oNewInstance);
-            }
 
-            $this
-                ->log('Payment flow: Uncaught exception')
-                ->log('– Class: ' . get_class($e))
-                ->log('– Error: ' . $e->getMessage())
-                ->log('– Code:  ' . $e->getCode())
-                ->log('– File:  ' . $e->getFile())
-                ->log('– Line:  ' . $e->getLine());
+                $this
+                    ->triggerEvent(
+                        Events::RENEWAL_INSTANCE_FAILED_TO_RENEW,
+                        [$oOldInstance, $oNewInstance, $e]
+                    );
+
+            } else {
+
+                $this
+                    ->log('Payment flow: Uncaught exception')
+                    ->log('– Class: ' . get_class($e))
+                    ->log('– Error: ' . $e->getMessage())
+                    ->log('– Code:  ' . $e->getCode())
+                    ->log('– File:  ' . $e->getFile())
+                    ->log('– Line:  ' . $e->getLine());
+
+            }
 
             throw $e;
 
@@ -925,11 +977,21 @@ class Subscription
                 ->log('FAILED: Could not find associated invoice')
                 ->setLogGroup($sOriginalLogGroup);
 
-            throw new RenewalException\InstanceFailedToRenewException(
+            $e = new RenewalException\InstanceFailedToRenewException(
                 'Could not find associated invoice'
             );
+
+            $this
+                ->triggerEvent(
+                    Events::RENEWAL_INSTANCE_FAILED_TO_RENEW,
+                    [$oInstance->previousInstance(), $oInstance, $e]
+                );
+
+            throw $e;
+
+        } else {
+            $this->log('Invoice: #' . $oInstance->id);
         }
-        $this->log('Invoice: #' . $oInstance->id);
 
         if (!$this->invoiceIsPaid($oInvoice)) {
 
@@ -937,9 +999,17 @@ class Subscription
                 ->log('FAILED: Invoice has not been paid')
                 ->setLogGroup($sOriginalLogGroup);
 
-            throw new RenewalException\InstanceFailedToRenewException(
+            $e = new RenewalException\InstanceFailedToRenewException(
                 'Associated invoice has not been paid'
             );
+
+            $this
+                ->triggerEvent(
+                    Events::RENEWAL_INSTANCE_FAILED_TO_RENEW,
+                    [$oInstance->previousInstance(), $oInstance, $e]
+                );
+
+            throw $e;
         }
 
         $this->log('Fetching previous instance...');
@@ -957,6 +1027,7 @@ class Subscription
                     'next_instance_id' => $oInstance->id,
                 ]
             );
+
         } else {
             $this->log('– No previous instance found');
         }
@@ -1394,5 +1465,40 @@ class Subscription
             $this->oInvoiceModel::STATE_PAID,
             $this->oInvoiceModel::STATE_PAID_PROCESSING,
         ]);
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Triggers an event with pauload
+     *
+     * @param string $sEvent
+     * @param array  $aPayload
+     *
+     * @return $this
+     * @throws FactoryException
+     * @throws \Nails\Common\Exception\NailsException
+     * @throws \ReflectionException
+     */
+    protected function triggerEvent(string $sEvent, array $aPayload): self
+    {
+        $sNamespace = Events::getEventNamespace();
+
+        $this->log(sprintf(
+            'Triggering Event: %s (%s)',
+            $sEvent,
+            $sNamespace
+        ));
+
+        /** @var Event $oEventService */
+        $oEventService = Factory::service('Event');
+        $oEventService
+            ->trigger(
+                $sEvent,
+                $sNamespace,
+                $aPayload
+            );
+
+        return $this;
     }
 }
