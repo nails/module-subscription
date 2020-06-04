@@ -75,6 +75,16 @@ class Events extends Base
      */
     const RENEWAL_UNCAUGHT_EXCEPTION = 'RENEWAL_UNCAUGHT_EXCEPTION';
 
+    /**
+     * Fired when an instance is swapped
+     *
+     * @param Resource\Instance $oInstance    The instance being swapped
+     * @param Resource\Package  $oPackage     The old package
+     * @param Resource\Package  $oPackage     The new package being applied
+     * @param bool              $bImmediately Whether the swap was performed immediately or at the end of the term
+     */
+    const INSTANCE_SWAPPED = 'INSTANCE_SWAPPED';
+
     // --------------------------------------------------------------------------
 
     /**

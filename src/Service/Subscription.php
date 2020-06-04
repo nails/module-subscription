@@ -1315,7 +1315,20 @@ class Subscription
             ];
         }
 
-        return $this->modify($oInstance, $aData);
+        $oOldPackage = $oInstance->package();
+        $oInstance   = $this->modify($oInstance, $aData);
+
+        $this->triggerEvent(
+            Events::INSTANCE_SWAPPED,
+            [
+                $oInstance,
+                $oOldPackage,
+                $oNewPackage,
+                $bImmediately,
+            ]
+        );
+
+        return $oInstance;
     }
 
     // --------------------------------------------------------------------------
