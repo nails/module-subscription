@@ -98,7 +98,7 @@ class Events extends Base
      *
      * @param Resource\Instance $oCancelledInstance The instance being cancelled
      */
-    const INSTANCE_CANCELLED = 'INSTANCE_MODIFIED';
+    const INSTANCE_CANCELLED = 'INSTANCE_CANCELLED';
 
     // --------------------------------------------------------------------------
 
