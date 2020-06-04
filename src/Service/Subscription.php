@@ -105,13 +105,14 @@ class Subscription
      */
     public function log(string $sLine = ''): self
     {
-        $sLine = trim($sLine);
+        $sLine     = trim($sLine);
+        $sLogGroup = $this->getLogGroup();
 
         $this
             ->oLogger
             ->line(
-                $this->sLogGroup && $sLine
-                    ? sprintf('[LOG GROUP: %s] – %s', $this->sLogGroup, $sLine)
+                $sLogGroup && $sLine
+                    ? sprintf('[LOG GROUP: %s] – %s', $sLogGroup, $sLine)
                     : $sLine
             );
 
@@ -119,7 +120,7 @@ class Subscription
             $this
                 ->oLogModel
                 ->create([
-                    'log_group' => $this->sLogGroup,
+                    'log_group' => $sLogGroup,
                     'log'       => $sLine,
                 ]);
         }
@@ -140,6 +141,18 @@ class Subscription
     {
         $this->sLogGroup = $sLogGroup;
         return $this;
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns the current log group
+     *
+     * @return string
+     */
+    public function getLogGroup(): string
+    {
+        return $this->sLogGroup;
     }
 
     // --------------------------------------------------------------------------
@@ -549,7 +562,7 @@ class Subscription
                 'date_cooling_off_end'    => $oCoolingOffEnd->format('Y-m-d H:i:s'),
                 'is_automatic_renew'      => $oPackage->supports_automatic_renew,
                 'previous_instance_id'    => $oPreviousInstance->id ?? null,
-                'log_group'               => $this->sLogGroup,
+                'log_group'               => $this->getLogGroup(),
             ],
             true
         );
@@ -961,7 +974,7 @@ class Subscription
      */
     public function confirmRenewal(Instance $oInstance): void
     {
-        $sOriginalLogGroup = $this->sLogGroup;
+        $sOriginalLogGroup = $this->getLogGroup();
 
         $this
             ->setLogGroup($oInstance->log_group)
