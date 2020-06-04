@@ -1164,7 +1164,7 @@ class Subscription
             $oInstance,
             [
                 'is_automatic_renew' => false,
-                'cancel_reason'      => $sReason,
+                'cancel_reason'      => substr($sReason, 0, 150),
                 'date_cancel'        => $oNow->format('Y-m-d H:i:s'),
             ]
         );
