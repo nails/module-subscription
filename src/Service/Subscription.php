@@ -133,13 +133,27 @@ class Subscription
     /**
      * Sets a string to group logs together
      *
-     * @param string $sLogGroup The grouping string
+     * @param string|Instance $mLogGroup The grouping string
      *
      * @return $this;
      */
-    public function setLogGroup(string $sLogGroup): self
+    public function setLogGroup(string $mLogGroup): self
     {
-        $this->sLogGroup = $sLogGroup;
+        if ($mLogGroup instanceof Instance) {
+            $this->sLogGroup = $mLogGroup->log_group;
+
+        } elseif (is_string($sLogGroup)) {
+            $this->sLogGroup = $mLogGroup;
+
+        } else {
+            throw new \InvalidArgumentException(
+                sprintf(
+                    'Invalid argument, expected %s|string, got %s',
+                    Instance::class,
+                    gettype($mLogGroup)
+                )
+            );
+        }
         return $this;
     }
 
@@ -977,7 +991,7 @@ class Subscription
         $sOriginalLogGroup = $this->getLogGroup();
 
         $this
-            ->setLogGroup($oInstance->log_group)
+            ->setLogGroup($oInstance)
             ->log('Confirming Renewal')
             ->log('Instance: #' . $oInstance->id);
 
