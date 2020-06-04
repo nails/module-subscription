@@ -15,6 +15,7 @@ namespace Nails\Subscription\Service;
 use DateTime;
 use Nails\Common\Exception\FactoryException;
 use Nails\Common\Exception\ModelException;
+use Nails\Common\Exception\NailsException;
 use Nails\Common\Exception\ValidationException;
 use Nails\Common\Factory\Logger;
 use Nails\Common\Helper;
@@ -102,6 +103,7 @@ class Subscription
      *
      * @return $this
      * @throws FactoryException
+     * @throws ModelException
      */
     public function log(string $sLine = ''): self
     {
@@ -186,10 +188,10 @@ class Subscription
      * @return Instance
      * @throws AlreadySubscribedException
      * @throws FactoryException
-     * @throws InvoiceException
      * @throws ModelException
-     * @throws PaymentFailedException
      * @throws RedirectRequiredException
+     * @throws ValidationException
+     * @throws \Throwable
      */
     public function create(
         Customer $oCustomer,
@@ -447,12 +449,12 @@ class Subscription
      * @param Package  $oPackage  The package being purchased
      * @param Currency $oCurrency The currency being used for the transaction
      *
-     * @return Subscription
+     * @return $this
      * @throws FactoryException
      * @throws ModelException
      * @throws ValidationException
      */
-    protected function validatePackage(Package $oPackage, Currency $oCurrency): Subscription
+    protected function validatePackage(Package $oPackage, Currency $oCurrency): self
     {
         $this->log(sprintf(
             'Validating package #%s (%s)',
@@ -491,10 +493,12 @@ class Subscription
      * @param Source        $oSource   The payment source to be charged
      * @param Customer      $oCustomer The customer being charged
      *
-     * @return Subscription
+     * @return $this
+     * @throws FactoryException
+     * @throws ModelException
      * @throws ValidationException
      */
-    protected function validateSource(?DateTime $oStart, Source $oSource, Customer $oCustomer): Subscription
+    protected function validateSource(?DateTime $oStart, Source $oSource, Customer $oCustomer): self
     {
         $this->log(sprintf(
             'Validating source #%s',
@@ -545,6 +549,7 @@ class Subscription
      * @param Instance $oPreviousInstance  The previous instance in the chain, if applicable
      *
      * @return Instance
+     * @throws FactoryException
      * @throws ModelException
      */
     protected function createInstance(
@@ -599,7 +604,8 @@ class Subscription
      * @param bool     $bIsNormalPrice Whether to charge the normal package price or not
      *
      * @return Invoice\Item
-     * @throws \Nails\Common\Exception\FactoryException
+     * @throws FactoryException
+     * @throws ModelException
      */
     protected function getLineItem(
         Instance $oInstance,
@@ -707,6 +713,7 @@ class Subscription
      * @param string                          $sErrorUrl        Where to go on dailed payment
      * @param bool                            $bForcePaymentNow Attempt payment now, even if it is not due
      *
+     * @return $this
      * @throws FactoryException
      * @throws ModelException
      * @throws PaymentFailedException
@@ -816,6 +823,13 @@ class Subscription
      * @param bool     $bCustomerPresent Whether the customer is present or not
      *
      * @return Instance
+     * @throws FactoryException
+     * @throws InstanceCannotRenewException
+     * @throws InstanceShouldNotRenewException
+     * @throws ModelException
+     * @throws RenewalException
+     * @throws NailsException
+     * @throws \ReflectionException
      */
     public function renew(Instance $oOldInstance, bool $bCustomerPresent): Instance
     {
@@ -825,7 +839,10 @@ class Subscription
 
         // --------------------------------------------------------------------------
 
+        $sOriginalLogGroup = $this->getLogGroup();
+
         $this
+            ->setLogGroup($oInstance)
             ->log('Renewing an existing instance')
             ->log('– Instance:         #' . $oOldInstance->id)
             ->log('– Customer:         #' . $oCustomer->id)
@@ -847,7 +864,8 @@ class Subscription
                 ->triggerEvent(
                     Events::RENEWAL_INSTANCE_SHOULD_NOT_RENEW,
                     [$oOldInstance, $e]
-                );
+                )
+                ->setLogGroup($sOriginalLogGroup);
 
             throw $e;
 
@@ -857,7 +875,8 @@ class Subscription
                 ->triggerEvent(
                     Events::RENEWAL_INSTANCE_CANNOT_RENEW,
                     [$oOldInstance, $e]
-                );
+                )
+                ->setLogGroup($sOriginalLogGroup);
 
             throw $e;
         }
@@ -971,7 +990,9 @@ class Subscription
             throw $e;
 
         } finally {
-            $this->log('Payment flow: finished');
+            $this
+                ->log('Payment flow: finished')
+                ->setLogGroup($sOriginalLogGroup);
         }
     }
 
@@ -984,7 +1005,9 @@ class Subscription
      *
      * @throws FactoryException
      * @throws ModelException
+     * @throws NailsException
      * @throws RenewalException\InstanceFailedToRenewException
+     * @throws \ReflectionException
      */
     public function confirmRenewal(Instance $oInstance): void
     {
@@ -1067,7 +1090,7 @@ class Subscription
     /**
      * Tests Whether an instance _should_ renew
      *
-     * @param Instance $oInstance
+     * @param Instance $oInstance The instance to test
      *
      * @return $this
      * @throws FactoryException
@@ -1102,9 +1125,12 @@ class Subscription
     /**
      * Tests whether an instance _can_ renew
      *
-     * @param Instance $oInstance
+     * @param Instance $oInstance The instance to test
      *
      * @return $this
+     * @throws FactoryException
+     * @throws InstanceCannotRenewException
+     * @throws ModelException
      */
     protected function instanceCanRenew(Instance $oInstance): self
     {
@@ -1143,8 +1169,14 @@ class Subscription
      * Prevent a subscription from renewing
      *
      * @param Instance $oInstance The subscription instance to cancel
+     * @param string   $sReason   The reason for cancellation
      *
      * @return Instance
+     * @throws FactoryException
+     * @throws ModelException
+     * @throws NailsException
+     * @throws SubscriptionException
+     * @throws \ReflectionException
      */
     public function cancel(Instance $oInstance, string $sReason = ''): Instance
     {
@@ -1194,6 +1226,11 @@ class Subscription
      * @param Instance $oInstance The instance to restore
      *
      * @return Instance
+     * @throws FactoryException
+     * @throws ModelException
+     * @throws NailsException
+     * @throws SubscriptionException
+     * @throws \ReflectionException
      */
     public function restore(Instance $oInstance): Instance
     {
@@ -1237,12 +1274,17 @@ class Subscription
     /**
      * Immediately terminate a subscription
      *
-     * @param Instance    $oInstance The subscription instance to terminate
-     * @param string|null $sReason   The reason for termination
+     * @param Instance $oInstance The subscription instance to terminate
+     * @param string   $sReason   The reason for termination
      *
      * @return Instance
+     * @throws FactoryException
+     * @throws ModelException
+     * @throws NailsException
+     * @throws SubscriptionException
+     * @throws \ReflectionException
      */
-    public function terminate(Instance $oInstance, string $sReason = null): Instance
+    public function terminate(Instance $oInstance, string $sReason = ''): Instance
     {
         $sOriginalLogGroup = $this->getLogGroup();
 
@@ -1290,6 +1332,11 @@ class Subscription
      * @param array    $aData     Data to modify the subscription with
      *
      * @return Instance
+     * @throws FactoryException
+     * @throws ModelException
+     * @throws NailsException
+     * @throws SubscriptionException
+     * @throws \ReflectionException
      */
     public function modify(Instance $oInstance, array $aData): Instance
     {
@@ -1341,6 +1388,11 @@ class Subscription
      * @param bool     $bImmediately Whether to swap immediately
      *
      * @return Instance
+     * @throws FactoryException
+     * @throws ModelException
+     * @throws NailsException
+     * @throws SubscriptionException
+     * @throws \ReflectionException
      */
     public function swap(
         Instance $oInstance,
@@ -1413,6 +1465,11 @@ class Subscription
      * @param bool     $bAutoRenew Whether auto-renew should be on or off
      *
      * @return Instance
+     * @throws FactoryException
+     * @throws ModelException
+     * @throws NailsException
+     * @throws SubscriptionException
+     * @throws \ReflectionException
      */
     public function setAutoRenew(Instance $oInstance, bool $bAutoRenew): Instance
     {
@@ -1445,6 +1502,8 @@ class Subscription
      * @param DateTime|null $oWhen     The time period to check
      *
      * @return bool
+     * @throws FactoryException
+     * @throws ModelException
      */
     public function isSubscribed(Customer $oCustomer, DateTime $oWhen = null): bool
     {
@@ -1475,6 +1534,8 @@ class Subscription
      * @param DateTime|null $oWhen     The time period to check
      *
      * @return Instance|null
+     * @throws FactoryException
+     * @throws ModelException
      */
     public function get(Customer $oCustomer, DateTime $oWhen = null): ?Instance
     {
@@ -1504,6 +1565,7 @@ class Subscription
      *
      * @return Instance[]
      * @throws FactoryException
+     * @throws ModelException
      */
     public function getRenewals(\DateTime $oWhen = null, bool $bOnlyDueToRenew = false): array
     {
@@ -1573,7 +1635,7 @@ class Subscription
     // --------------------------------------------------------------------------
 
     /**
-     * etermines whether an invoice is considered paid or not
+     * Determines whether an invoice is considered paid or not
      *
      * @param \Nails\Invoice\Resource\Invoice $oInvoice The invoice to check
      *
@@ -1592,12 +1654,13 @@ class Subscription
     /**
      * Triggers an event with pauload
      *
-     * @param string $sEvent
-     * @param array  $aPayload
+     * @param string $sEvent   The event to fire
+     * @param array  $aPayload The payload to fire with
      *
      * @return $this
      * @throws FactoryException
-     * @throws \Nails\Common\Exception\NailsException
+     * @throws ModelException
+     * @throws NailsException
      * @throws \ReflectionException
      */
     protected function triggerEvent(string $sEvent, array $aPayload): self
