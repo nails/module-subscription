@@ -978,7 +978,7 @@ class Subscription
     // --------------------------------------------------------------------------
 
     /**
-     * Confirms a renewal and updates the instances in questions
+     * Confirms a renewal and updates the instances in question
      *
      * @param Instance $oInstance
      *
@@ -1100,7 +1100,7 @@ class Subscription
     // --------------------------------------------------------------------------
 
     /**
-     * Tests Whether an instance _can_ renew
+     * Tests whether an instance _can_ renew
      *
      * @param Instance $oInstance
      *
@@ -1148,7 +1148,11 @@ class Subscription
      */
     public function cancel(Instance $oInstance, string $sReason = ''): Instance
     {
-        $this->log('Cancelling instance: #' . $oInstance->id);
+        $sOriginalLogGroup = $this->getLogGroup();
+
+        $this
+            ->setLogGroup($oInstance)
+            ->log('Cancelling instance: #' . $oInstance->id);
 
         if ($oInstance->isCancelled()) {
             $this->log('FAILED: Instance is already cancelled');
@@ -1177,6 +1181,8 @@ class Subscription
                 ]
             );
 
+        $this->setLogGroup($sOriginalLogGroup);
+
         return $oCancelledInstance;
     }
 
@@ -1191,7 +1197,11 @@ class Subscription
      */
     public function restore(Instance $oInstance): Instance
     {
-        $this->log('Restoring instance: #' . $oInstance->id);
+        $sOriginalLogGroup = $this->getLogGroup();
+
+        $this
+            ->setLogGroup($oInstance)
+            ->log('Restoring instance: #' . $oInstance->id);
 
         if (!$oInstance->isCancelled()) {
             $this->log('FAILED: Instance is not in a cancelled state');
@@ -1200,14 +1210,18 @@ class Subscription
             );
         }
 
-        return $this->modify(
+        $oModifiedInstance = $this->modify(
             $oInstance,
             [
                 'is_automatic_renew' => true,
-                'cancel_reason'      => null,
+                'cancel_reason'      => '',
                 'date_cancel'        => null,
             ]
         );
+
+        $this->setLogGroup($sOriginalLogGroup);
+
+        return $oModifiedInstance;
     }
 
     // --------------------------------------------------------------------------
@@ -1222,14 +1236,19 @@ class Subscription
      */
     public function terminate(Instance $oInstance, string $sReason = null): Instance
     {
-        $this->log('Terminating instance: #' . $oInstance->id);
+        $sOriginalLogGroup = $this->getLogGroup();
+
+        $this
+            ->setLogGroup($oInstance)
+            ->log('Terminating instance: #' . $oInstance->id);
+
         if ($sReason) {
             $this->log('– Reason: ' . $sReason);
         }
         /** @var \DateTime $oNow */
         $oNow = Factory::factory('DateTime');
 
-        return $this->modify(
+        $oModifiedInstance = $this->modify(
             $oInstance,
             [
                 'is_automatic_renew'    => false,
@@ -1240,6 +1259,10 @@ class Subscription
                 'date_cooling_off_end'  => $oNow->format('Y-m-d H:i:s'),
             ]
         );
+
+        $this->setLogGroup($sOriginalLogGroup);
+
+        return $oModifiedInstance;
     }
 
     // --------------------------------------------------------------------------
@@ -1254,7 +1277,12 @@ class Subscription
      */
     public function modify(Instance $oInstance, array $aData): Instance
     {
-        $this->log('Modifying instance: #' . $oInstance->id);
+        $sOriginalLogGroup = $this->getLogGroup();
+
+        $this
+            ->setLogGroup($oInstance)
+            ->log('Modifying instance: #' . $oInstance->id);
+
         foreach ($aData as $sKey => $mValue) {
             $this->log('– ' . $sKey . ': ' . json_encode($mValue));
         }
@@ -1282,6 +1310,8 @@ class Subscription
                 ]
             );
 
+        $this->setLogGroup($sOriginalLogGroup);
+
         return $oModifiedInstance;
     }
 
@@ -1302,7 +1332,10 @@ class Subscription
         bool $bImmediately = false
     ): Instance {
 
+        $sOriginalLogGroup = $this->getLogGroup();
+
         $this
+            ->setLogGroup($oInstance)
             ->log('Swapping an instance to a new package')
             ->log('– Instance:         #' . $oInstance->id)
             ->log('– New Package:      #' . $oNewPackage->id)
@@ -1350,6 +1383,8 @@ class Subscription
             ]
         );
 
+        $this->setLogGroup($sOriginalLogGroup);
+
         return $oInstance;
     }
 
@@ -1365,17 +1400,24 @@ class Subscription
      */
     public function setAutoRenew(Instance $oInstance, bool $bAutoRenew): Instance
     {
+        $sOriginalLogGroup = $this->getLogGroup();
+
         $this
+            ->setLogGroup($oInstance)
             ->log('Setting instance\'s auto renew status')
             ->log('– Instance: #' . $oInstance->id)
             ->log('– Status:   ' . json_encode($bAutoRenew));
 
-        return $this->modify(
+        $oModifiedInstance = $this->modify(
             $oInstance,
             [
                 'is_automatic_renew' => $bAutoRenew,
             ]
         );
+
+        $this->setLogGroup($sOriginalLogGroup);
+
+        return $oModifiedInstance;
     }
 
     // --------------------------------------------------------------------------
