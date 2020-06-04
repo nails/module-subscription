@@ -1146,7 +1146,7 @@ class Subscription
      *
      * @return Instance
      */
-    public function cancel(Instance $oInstance, string $sReason = null): Instance
+    public function cancel(Instance $oInstance, string $sReason = ''): Instance
     {
         $this->log('Cancelling instance: #' . $oInstance->id);
 
