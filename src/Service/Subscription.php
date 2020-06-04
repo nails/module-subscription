@@ -137,7 +137,7 @@ class Subscription
      *
      * @return $this;
      */
-    public function setLogGroup(string $mLogGroup): self
+    public function setLogGroup($mLogGroup): self
     {
         if ($mLogGroup instanceof Instance) {
             $this->sLogGroup = $mLogGroup->log_group;
