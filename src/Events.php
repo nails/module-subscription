@@ -85,6 +85,21 @@ class Events extends Base
      */
     const INSTANCE_SWAPPED = 'INSTANCE_SWAPPED';
 
+    /**
+     * Fired when an instance is modified
+     *
+     * @param Resource\Instance $oOriginalInstance The instance prior being modified
+     * @param Resource\Instance $oModifiedInstance The instance after being modified
+     */
+    const INSTANCE_MODIFIED = 'INSTANCE_MODIFIED';
+
+    /**
+     * Fired when an instance is cancelled
+     *
+     * @param Resource\Instance $oCancelledInstance The instance being cancelled
+     */
+    const INSTANCE_CANCELLED = 'INSTANCE_MODIFIED';
+
     // --------------------------------------------------------------------------
 
     /**

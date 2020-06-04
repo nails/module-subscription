@@ -1160,7 +1160,7 @@ class Subscription
         /** @var \DateTime $oNow */
         $oNow = Factory::factory('DateTime');
 
-        return $this->modify(
+        $oCancelledInstance = $this->modify(
             $oInstance,
             [
                 'is_automatic_renew' => false,
@@ -1168,6 +1168,16 @@ class Subscription
                 'date_cancel'        => $oNow->format('Y-m-d H:i:s'),
             ]
         );
+
+        $this
+            ->triggerEvent(
+                Events::INSTANCE_CANCELLED,
+                [
+                    $oCancelledInstance,
+                ]
+            );
+
+        return $oCancelledInstance;
     }
 
     // --------------------------------------------------------------------------
@@ -1259,8 +1269,20 @@ class Subscription
             );
         }
 
-        //  @todo (Pablo - 2020-05-06) - Prevent caching
-        return $this->oInstanceModel->getById($oInstance->id);
+        $oModifiedInstance = $this->oInstanceModel
+            ->skipCache()
+            ->getById($oInstance->id);
+
+        $this
+            ->triggerEvent(
+                Events::INSTANCE_MODIFIED,
+                [
+                    $oInstance,
+                    $oModifiedInstance,
+                ]
+            );
+
+        return $oModifiedInstance;
     }
 
     // --------------------------------------------------------------------------
