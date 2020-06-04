@@ -1191,7 +1191,7 @@ class Subscription
     /**
      * Restores a cancelled subscription
      *
-     * @param Instance $oInstance
+     * @param Instance $oInstance The instance to restore
      *
      * @return Instance
      */
@@ -1210,7 +1210,7 @@ class Subscription
             );
         }
 
-        $oModifiedInstance = $this->modify(
+        $oRestoredInstance = $this->modify(
             $oInstance,
             [
                 'is_automatic_renew' => true,
@@ -1219,9 +1219,17 @@ class Subscription
             ]
         );
 
+        $this
+            ->triggerEvent(
+                Events::INSTANCE_RESTORED,
+                [
+                    $oRestoredInstance,
+                ]
+            );
+
         $this->setLogGroup($sOriginalLogGroup);
 
-        return $oModifiedInstance;
+        return $oRestoredInstance;
     }
 
     // --------------------------------------------------------------------------
@@ -1248,7 +1256,7 @@ class Subscription
         /** @var \DateTime $oNow */
         $oNow = Factory::factory('DateTime');
 
-        $oModifiedInstance = $this->modify(
+        $oTerminatedInstance = $this->modify(
             $oInstance,
             [
                 'is_automatic_renew'    => false,
@@ -1260,9 +1268,17 @@ class Subscription
             ]
         );
 
+        $this
+            ->triggerEvent(
+                Events::INSTANCE_TERMINATED,
+                [
+                    $oTerminatedInstance,
+                ]
+            );
+
         $this->setLogGroup($sOriginalLogGroup);
 
-        return $oModifiedInstance;
+        return $oTerminatedInstance;
     }
 
     // --------------------------------------------------------------------------

@@ -100,6 +100,20 @@ class Events extends Base
      */
     const INSTANCE_CANCELLED = 'INSTANCE_CANCELLED';
 
+    /**
+     * Fired when an instance is restored
+     *
+     * @param Resource\Instance $oRestoredInstance The instance which was restored
+     */
+    const INSTANCE_RESTORED = 'INSTANCE_RESTORED';
+
+    /**
+     * Fired when an instance is terminated
+     *
+     * @param Resource\Instance $oTerminatedInstance The instance which was terminated
+     */
+    const INSTANCE_TERMINATED = 'INSTANCE_TERMINATED';
+
     // --------------------------------------------------------------------------
 
     /**
