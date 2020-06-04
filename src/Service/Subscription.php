@@ -142,7 +142,7 @@ class Subscription
         if ($mLogGroup instanceof Instance) {
             $this->sLogGroup = $mLogGroup->log_group;
 
-        } elseif (is_string($sLogGroup)) {
+        } elseif (is_string($mLogGroup)) {
             $this->sLogGroup = $mLogGroup;
 
         } else {
