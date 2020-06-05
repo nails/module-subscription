@@ -12,7 +12,6 @@
 
 namespace Nails\Subscription\Exception\RenewalException;
 
-use Nails\Common\Exception\NailsException;
 use Nails\Subscription\Exception\RenewalException;
 
 /**

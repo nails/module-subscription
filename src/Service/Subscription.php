@@ -13,6 +13,8 @@
 namespace Nails\Subscription\Service;
 
 use DateTime;
+use Exception;
+use InvalidArgumentException;
 use Nails\Common\Exception\FactoryException;
 use Nails\Common\Exception\ModelException;
 use Nails\Common\Exception\NailsException;
@@ -38,8 +40,11 @@ use Nails\Subscription\Exception\RenewalException;
 use Nails\Subscription\Exception\RenewalException\InstanceCannotRenewException;
 use Nails\Subscription\Exception\RenewalException\InstanceShouldNotRenewException;
 use Nails\Subscription\Exception\SubscriptionException;
+use Nails\Subscription\Model;
 use Nails\Subscription\Resource\Instance;
 use Nails\Subscription\Resource\Package;
+use ReflectionException;
+use Throwable;
 
 /**
  * Class Subscription
@@ -48,13 +53,13 @@ use Nails\Subscription\Resource\Package;
  */
 class Subscription
 {
-    /** @var \Nails\Subscription\Model\Instance */
+    /** @var Model\Instance */
     protected $oInstanceModel;
 
     /** @var \Nails\Invoice\Model\Invoice */
     protected $oInvoiceModel;
 
-    /** @var \Nails\Invoice\Model\Log */
+    /** @var Model\Log */
     protected $oLogModel;
 
     /** @var Logger */
@@ -68,17 +73,17 @@ class Subscription
     /**
      * Subscription constructor.
      *
-     * @param \Nails\Subscription\Model\Instance|null $oInstanceModel The instance model to use
-     * @param \Nails\Invoice\Model\Invoice|null       $oInvoiceModel  The invoice model to use
-     * @param \Nails\Invoice\Model\Log|null           $oLogModel      The log model to use
-     * @param Logger|null                             $oLogger        The logger to use
+     * @param Model\Instance|null               $oInstanceModel The instance model to use
+     * @param \Nails\Invoice\Model\Invoice|null $oInvoiceModel  The invoice model to use
+     * @param Model\Log|null                    $oLogModel      The log model to use
+     * @param Logger|null                       $oLogger        The logger to use
      *
      * @throws FactoryException
      */
     public function __construct(
-        \Nails\Subscription\Model\Instance $oInstanceModel = null,
+        Model\Instance $oInstanceModel = null,
         \Nails\Invoice\Model\Invoice $oInvoiceModel = null,
-        \Nails\Invoice\Model\Log $oLogModel = null,
+        Model\Log $oLogModel = null,
         Logger $oLogger = null
     ) {
         $this->oInstanceModel = $oInstanceModel ?? Factory::model('Instance', Constants::MODULE_SLUG);
@@ -148,7 +153,7 @@ class Subscription
             $this->sLogGroup = $mLogGroup;
 
         } else {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 sprintf(
                     'Invalid argument, expected %s|string, got %s',
                     Instance::class,
@@ -191,7 +196,7 @@ class Subscription
      * @throws ModelException
      * @throws RedirectRequiredException
      * @throws ValidationException
-     * @throws \Throwable
+     * @throws Throwable
      */
     public function create(
         Customer $oCustomer,
@@ -204,7 +209,7 @@ class Subscription
         DateTime $oStart = null
     ): Instance {
 
-        /** @var \DateTime $oStart */
+        /** @var DateTime $oStart */
         $oStart = $oStart ?? Factory::factory('DateTime');
 
         // --------------------------------------------------------------------------
@@ -330,7 +335,7 @@ class Subscription
 
             throw $e;
 
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
 
             $this
                 ->log('Payment flow: Uncaught exception')
@@ -343,7 +348,7 @@ class Subscription
             $this->terminate(
                 $oInstance,
                 sprintf(
-                    'An exception ocurred during processing: %s with code %s; %s',
+                    'An exception occurred during processing: %s with code %s; %s',
                     get_class($e),
                     $e->getCode(),
                     $e->getMessage()
@@ -536,7 +541,7 @@ class Subscription
     /**
      * Creates a new instance
      *
-     * @param Customer $oCustomer          The custoer to assign the instance too
+     * @param Customer $oCustomer          The customer to assign the instance too
      * @param Package  $oPackage           The package to assign to the instance
      * @param Source   $oSource            The payment source for the instance
      * @param Currency $oCurrency          The currency to charge in
@@ -567,6 +572,7 @@ class Subscription
     ): Instance {
 
         $this->log('Creating new instance:');
+        /** @var Instance $oInstance */
         $oInstance = $this->oInstanceModel->create(
             [
                 'customer_id'             => $oCustomer->id,
@@ -672,9 +678,7 @@ class Subscription
 
         /** @var Invoice $oInvoiceBuilder */
         $oInvoiceBuilder = Factory::factory('Invoice', \Nails\Invoice\Constants::MODULE_SLUG);
-
-        /** @var \Nails\Invoice\Resource\Invoice $oInvoice */
-        $oInvoice = $oInvoiceBuilder
+        $oInvoice        = $oInvoiceBuilder
             ->setCustomerId($oInstance->customer())
             ->setCurrency($oInstance->currency)
             ->setDated($oInstance->date_subscription_start)
@@ -709,8 +713,9 @@ class Subscription
      * @param Instance                        $oInstance        The instance being charged
      * @param \Nails\Invoice\Resource\Invoice $oInvoice         The invoice to charge
      * @param Source                          $oSource          The Payment source to use
-     * @param string                          $sSuccessUrl      Where to go on successfull payment
-     * @param string                          $sErrorUrl        Where to go on dailed payment
+     * @param bool                            $bCustomerPresent Whether the customer is present or not
+     * @param string                          $sSuccessUrl      Where to go on successful payment
+     * @param string                          $sErrorUrl        Where to go on failed payment
      * @param bool                            $bForcePaymentNow Attempt payment now, even if it is not due
      *
      * @return $this
@@ -737,7 +742,7 @@ class Subscription
         $this->log('– Error URL:         ' . $sErrorUrl);
         $this->log('– Force Payment Now: ' . json_encode($bForcePaymentNow));
 
-        /** @var \DateTime $oNow */
+        /** @var DateTime $oNow */
         $oNow = Factory::factory('DateTime');
 
         if (
@@ -829,7 +834,7 @@ class Subscription
      * @throws ModelException
      * @throws RenewalException
      * @throws NailsException
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function renew(Instance $oOldInstance, bool $bCustomerPresent): Instance
     {
@@ -842,7 +847,7 @@ class Subscription
         $sOriginalLogGroup = $this->getLogGroup();
 
         $this
-            ->setLogGroup($oInstance)
+            ->setLogGroup($oOldInstance)
             ->log('Renewing an existing instance')
             ->log('– Instance:         #' . $oOldInstance->id)
             ->log('– Customer:         #' . $oCustomer->id)
@@ -939,7 +944,7 @@ class Subscription
 
             return $oNewInstance;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
 
             if ($e instanceof RedirectRequiredException) {
 
@@ -1007,7 +1012,7 @@ class Subscription
      * @throws ModelException
      * @throws NailsException
      * @throws RenewalException\InstanceFailedToRenewException
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function confirmRenewal(Instance $oInstance): void
     {
@@ -1176,7 +1181,7 @@ class Subscription
      * @throws ModelException
      * @throws NailsException
      * @throws SubscriptionException
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function cancel(Instance $oInstance, string $sReason = ''): Instance
     {
@@ -1193,7 +1198,7 @@ class Subscription
             );
         }
 
-        /** @var \DateTime $oNow */
+        /** @var DateTime $oNow */
         $oNow = Factory::factory('DateTime');
 
         $oCancelledInstance = $this->modify(
@@ -1230,7 +1235,7 @@ class Subscription
      * @throws ModelException
      * @throws NailsException
      * @throws SubscriptionException
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function restore(Instance $oInstance): Instance
     {
@@ -1282,7 +1287,7 @@ class Subscription
      * @throws ModelException
      * @throws NailsException
      * @throws SubscriptionException
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function terminate(Instance $oInstance, string $sReason = ''): Instance
     {
@@ -1295,7 +1300,7 @@ class Subscription
         if ($sReason) {
             $this->log('– Reason: ' . $sReason);
         }
-        /** @var \DateTime $oNow */
+        /** @var DateTime $oNow */
         $oNow = Factory::factory('DateTime');
 
         $oTerminatedInstance = $this->modify(
@@ -1336,7 +1341,7 @@ class Subscription
      * @throws ModelException
      * @throws NailsException
      * @throws SubscriptionException
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function modify(Instance $oInstance, array $aData): Instance
     {
@@ -1360,6 +1365,7 @@ class Subscription
             );
         }
 
+        /** @var Instance $oModifiedInstance */
         $oModifiedInstance = $this->oInstanceModel
             ->skipCache()
             ->getById($oInstance->id);
@@ -1392,7 +1398,7 @@ class Subscription
      * @throws ModelException
      * @throws NailsException
      * @throws SubscriptionException
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function swap(
         Instance $oInstance,
@@ -1469,7 +1475,7 @@ class Subscription
      * @throws ModelException
      * @throws NailsException
      * @throws SubscriptionException
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public function setAutoRenew(Instance $oInstance, bool $bAutoRenew): Instance
     {
@@ -1552,7 +1558,9 @@ class Subscription
             ],
         ]);
 
-        return reset($aInstance) ?: null;
+        /** @var Instance $oInstance */
+        $oInstance = reset($aInstance) ?: null;
+        return $oInstance;
     }
 
     // --------------------------------------------------------------------------
@@ -1567,11 +1575,12 @@ class Subscription
      * @throws FactoryException
      * @throws ModelException
      */
-    public function getRenewals(\DateTime $oWhen = null, bool $bOnlyDueToRenew = false): array
+    public function getRenewals(DateTime $oWhen = null, bool $bOnlyDueToRenew = false): array
     {
         /** @var DateTime $oWhen */
         $oWhen = $oWhen ?? Factory::factory('DateTime');
 
+        /** @var Instance[] $aInstances */
         $aInstances = $this->oInstanceModel->getAll([
             'where' => [
                 ['DATE(date_subscription_end)', $oWhen->format('Y-m-d')],
@@ -1586,7 +1595,7 @@ class Subscription
     // --------------------------------------------------------------------------
 
     /**
-     * Filters intances which will not renew
+     * Filters instances which will not renew
      * – Are set to not renew
      * – Have already renewed
      *
@@ -1652,7 +1661,7 @@ class Subscription
     // --------------------------------------------------------------------------
 
     /**
-     * Triggers an event with pauload
+     * Triggers an event with payload
      *
      * @param string $sEvent   The event to fire
      * @param array  $aPayload The payload to fire with
@@ -1661,7 +1670,7 @@ class Subscription
      * @throws FactoryException
      * @throws ModelException
      * @throws NailsException
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     protected function triggerEvent(string $sEvent, array $aPayload): self
     {

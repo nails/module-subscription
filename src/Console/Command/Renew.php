@@ -2,20 +2,23 @@
 
 namespace Nails\Subscription\Console\Command;
 
+use DateTime;
+use Exception;
+use Nails\Common\Exception\FactoryException;
+use Nails\Common\Exception\ModelException;
 use Nails\Common\Exception\NailsException;
 use Nails\Common\Service\ErrorHandler;
 use Nails\Common\Service\Event;
 use Nails\Console\Command\Base;
-use Nails\Console\Exception\ConsoleException;
 use Nails\Factory;
 use Nails\Subscription\Constants;
 use Nails\Subscription\Events;
 use Nails\Subscription\Exception\RenewalException\InstanceCannotRenewException;
 use Nails\Subscription\Exception\RenewalException\InstanceFailedToRenewException;
 use Nails\Subscription\Exception\RenewalException\InstanceShouldNotRenewException;
-use Nails\Subscription\Exception\RenewalException;
 use Nails\Subscription\Resource\Instance;
 use Nails\Subscription\Service\Subscription;
+use ReflectionException;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -48,8 +51,10 @@ class Renew extends Base
      * @param InputInterface  $oInput  The Input Interface provided by Symfony
      * @param OutputInterface $oOutput The Output Interface provided by Symfony
      *
-     * @return void
-     * @throws \Exception
+     * @return int
+     * @throws FactoryException
+     * @throws ModelException
+     * @throws Exception
      */
     protected function execute(InputInterface $oInput, OutputInterface $oOutput)
     {
@@ -58,7 +63,7 @@ class Renew extends Base
         $this->banner('Subscription Renewals');
 
         $sDate = $oInput->getOption('date');
-        $oDate = new \DateTime($sDate);
+        $oDate = new DateTime($sDate);
 
         $oOutput->writeln(
             sprintf(
@@ -69,7 +74,7 @@ class Renew extends Base
         $aRenewals = $this->getRenewals($oDate);
 
         if (!empty($aRenewals) && $this->confirmRenewals($aRenewals)) {
-            $this->processRenewals($aRenewals, $oDate);
+            $this->processRenewals($aRenewals);
 
         } elseif (empty($aRenewals)) {
             $oOutput->writeln('No renewals to be processed');
@@ -87,10 +92,13 @@ class Renew extends Base
     /**
      * Returns instances which are due to renew
      *
+     * @param DateTime $oWhen Fetch renewals which will happen on a particular date
+     *
      * @return Instance[]
-     * @throws \Nails\Common\Exception\FactoryException
+     * @throws FactoryException
+     * @throws ModelException
      */
-    protected function getRenewals(\DateTime $oWhen): array
+    protected function getRenewals(DateTime $oWhen): array
     {
         /** @var Subscription $oSubscription */
         $oSubscription = Factory::service('Subscription', Constants::MODULE_SLUG);
@@ -100,9 +108,11 @@ class Renew extends Base
     // --------------------------------------------------------------------------
 
     /**
-     * @param Instance[] $aInstances
+     * @param Instance[] $aInstances The instances to confirm will be processed
      *
      * @return bool
+     * @throws FactoryException
+     * @throws ModelException
      */
     protected function confirmRenewals(array $aInstances): bool
     {
@@ -128,9 +138,13 @@ class Renew extends Base
     /**
      * Processes each renewal
      *
-     * @param Instance[] $aInstances
+     * @param Instance[] $aInstances The instances to process for renewal
      *
-     * @throws \Nails\Common\Exception\FactoryException
+     * @return Renew
+     * @throws FactoryException
+     * @throws ModelException
+     * @throws NailsException
+     * @throws ReflectionException
      */
     protected function processRenewals(array $aInstances): self
     {
@@ -143,7 +157,7 @@ class Renew extends Base
             try {
 
                 /**
-                 * Set a string to group all the lgos for this particular renewal together.
+                 * Set a string to group all the logs for this particular renewal together.
                  * This allows for easier log searching as you can find all logs which
                  * apply to a particular action by grep'ing by the log group
                  */
@@ -163,7 +177,7 @@ class Renew extends Base
                     )
                 );
 
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
 
                 $this->logException($oSubscription, $e);
 
@@ -173,7 +187,7 @@ class Renew extends Base
                  * Caught: InstanceShouldNotRenewException
                  * ---------------------------------------
                  * Instances which fire this flavour of exception should not have
-                 * any form of renewal attempted. This isn't necessrily an error,
+                 * any form of renewal attempted. This isn't necessarily an error,
                  * it could be the instance has been configured not to renew. We
                  * want to fire an event anyway to let the app decide how it wishes
                  * to handle this scenario. e.g. send a "your subscription has ended"
@@ -182,7 +196,7 @@ class Renew extends Base
                  *
                  * Caught: InstanceCannotRenewException
                  * ------------------------------------
-                 * Instances which fire this flavour of exception want to rewnew,
+                 * Instances which fire this flavour of exception want to renew,
                  * but can't due to knowledge that the renewal will fail, e.g.
                  * their card is missing, or has expired.
                  *
@@ -231,17 +245,16 @@ class Renew extends Base
     /**
      * Utility method which logs an exception to the output and triggers an event
      *
-     * @param Subscription $oSubscription  The subscriptions ervice
-     * @param \Exception   $e              The exception which was caught
-     * @param string       $sEvent         The event to fire
-     * @param bool         $bBothInstances Whether to include both instances in the event data
+     * @param Subscription $oSubscription The subscriptions service
+     * @param Exception   $e             The exception which was caught
      *
-     * @throws NailsException
-     * @throws \ReflectionException
+     * @return Renew
+     * @throws FactoryException
+     * @throws ModelException
      */
     protected function logException(
         Subscription $oSubscription,
-        \Exception $e
+        Exception $e
     ): self {
 
         $sLine = sprintf(
@@ -262,18 +275,18 @@ class Renew extends Base
      * Triggers a particular event
      *
      * @param Subscription $oSubscription  The subscription service
-     * @param \Exception   $e              The exception thrown
+     * @param Exception   $e              The exception thrown
      * @param string       $sEvent         The event to trigger
      * @param bool|null    $bBothInstances Whether to pass both instances as the event payload
      *
      * @return $this
      * @throws NailsException
-     * @throws \Nails\Common\Exception\FactoryException
-     * @throws \ReflectionException
+     * @throws FactoryException
+     * @throws ReflectionException
      */
     protected function triggerEvent(
         Subscription $oSubscription,
-        \Exception $e,
+        Exception $e,
         string $sEvent,
         ?bool $bBothInstances = false
     ): self {

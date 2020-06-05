@@ -12,19 +12,13 @@
 
 namespace Nails\Subscription\Resource\Instance;
 
-use Mustache_Engine;
+use JsonSerializable;
 use Nails\Common\Exception\FactoryException;
 use Nails\Common\Exception\ModelException;
-use Nails\Common\Resource;
-use Nails\Common\Service\DateTime;
-use Nails\Currency\Resource\Currency;
 use Nails\Factory;
 use Nails\Invoice\Resource\Invoice\Item\Data\Callback;
 use Nails\Subscription\Constants;
-use Nails\Subscription\Exception\SubscriptionException;
-use Nails\Subscription\Model\Package;
 use Nails\Subscription\Resource\Instance;
-use Nails\Subscription\Resource\Package\Cost;
 use stdClass;
 
 /**
@@ -32,7 +26,7 @@ use stdClass;
  *
  * @package Nails\Subscription\Resource\Instance
  */
-class CallbackData extends \Nails\Invoice\Factory\Invoice\Item\CallbackData implements \JsonSerializable
+class CallbackData extends \Nails\Invoice\Factory\Invoice\Item\CallbackData implements JsonSerializable
 {
     const IDENTIFIER   = 'INSTANCE_PAYMENT';
     const TYPE_INITIAL = 'INSTANCE_INITIAL';
@@ -67,6 +61,8 @@ class CallbackData extends \Nails\Invoice\Factory\Invoice\Item\CallbackData impl
      * Sets the instance ID
      *
      * @param int $iInstanceId The ID to set
+     *
+     * @return $this
      */
     public function setInstanceId(int $iInstanceId): self
     {
@@ -95,6 +91,8 @@ class CallbackData extends \Nails\Invoice\Factory\Invoice\Item\CallbackData impl
      * Sets the instance
      *
      * @param Instance $instance The instance to set
+     *
+     * @return $this
      */
     public function setInstance(Instance $instance): self
     {
@@ -148,6 +146,8 @@ class CallbackData extends \Nails\Invoice\Factory\Invoice\Item\CallbackData impl
      * then this is a renewal payment
      *
      * @return string
+     * @throws FactoryException
+     * @throws ModelException
      */
     public function getType(): string
     {
@@ -161,7 +161,9 @@ class CallbackData extends \Nails\Invoice\Factory\Invoice\Item\CallbackData impl
     /**
      * Serializes the class
      *
-     * @return \stdClass
+     * @return stdClass
+     * @throws FactoryException
+     * @throws ModelException
      */
     public function jsonSerialize()
     {

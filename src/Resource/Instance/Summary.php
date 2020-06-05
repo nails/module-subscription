@@ -12,6 +12,7 @@
 
 namespace Nails\Subscription\Resource\Instance;
 
+use InvalidArgumentException;
 use Mustache_Engine;
 use Nails\Common\Exception\FactoryException;
 use Nails\Common\Exception\ModelException;
@@ -62,9 +63,9 @@ class Summary extends Resource
     // --------------------------------------------------------------------------
 
     /**
-     * Sets the time reference to summarrise the instance from
+     * Sets the time reference to summarise the instance from
      *
-     * @param \DateTime|null $oDate A date to refernce from
+     * @param \DateTime|null $oDate A date to reference from
      *
      * @return $this
      */
@@ -133,6 +134,8 @@ class Summary extends Resource
      * @param \Nails\Subscription\Resource\Package|null $oPackage A package to summarise
      *
      * @return stdClass|null
+     * @throws FactoryException
+     * @throws ModelException
      */
     protected function extractPackageDetails(?\Nails\Subscription\Resource\Package $oPackage): ?stdClass
     {
@@ -206,7 +209,7 @@ class Summary extends Resource
                 break;
 
             default:
-                throw new \InvalidArgumentException(
+                throw new InvalidArgumentException(
                     sprintf(
                         '"%s" is not a supported billing period',
                         $sBillingPeriod

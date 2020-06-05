@@ -267,7 +267,7 @@ class Instance extends Entity
      * @return bool
      * @throws FactoryException
      */
-    protected function isInPeriod(\DateTime $oWhen = null, string $sProperty): bool
+    protected function isInPeriod(?\DateTime $oWhen, string $sProperty): bool
     {
         /** @var \DateTime $oWhen */
         $oWhen = $oWhen ?? Factory::factory('DateTime');

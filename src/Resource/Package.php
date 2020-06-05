@@ -14,7 +14,6 @@ namespace Nails\Subscription\Resource;
 
 use Nails\Common\Exception\FactoryException;
 use Nails\Common\Exception\ModelException;
-use Nails\Common\Helper\Model\Expand;
 use Nails\Common\Resource\DateTime;
 use Nails\Common\Resource\Entity;
 use Nails\Common\Resource\ExpandableField;

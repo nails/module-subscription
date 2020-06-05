@@ -12,6 +12,7 @@
 
 namespace Nails\Subscription\Exception;
 
+use Exception;
 use Nails\Subscription\Resource\Instance;
 
 /**
@@ -21,7 +22,7 @@ use Nails\Subscription\Resource\Instance;
  */
 class RenewalException extends SubscriptionException
 {
-    /** @var \Exception */
+    /** @var Exception */
     protected $oOriginalException;
 
     /** @var Instance */
@@ -35,9 +36,11 @@ class RenewalException extends SubscriptionException
     /**
      * Sets the original exception which triggered this exception
      *
-     * @param \Exception $oOriginalException
+     * @param Exception $oOriginalException
+     *
+     * @return $this
      */
-    public function setOriginalException(\Exception $oOriginalException): self
+    public function setOriginalException(Exception $oOriginalException): self
     {
         $this->oOriginalException = $oOriginalException;
         return $this;
@@ -48,9 +51,9 @@ class RenewalException extends SubscriptionException
     /**
      * Returns the original exception
      *
-     * @return \Exception|null
+     * @return Exception|null
      */
-    public function getOriginalException(): ?\Exception
+    public function getOriginalException(): ?Exception
     {
         return $this->oOriginalException;
     }

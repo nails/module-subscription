@@ -13,11 +13,16 @@
 namespace Nails\Subscription\Event\Listener\Invoice;
 
 use Nails\Common\Events\Subscription;
+use Nails\Common\Exception\FactoryException;
+use Nails\Common\Exception\ModelException;
+use Nails\Common\Exception\NailsException;
 use Nails\Factory;
 use Nails\Invoice\Events;
 use Nails\Invoice\Resource\Invoice;
 use Nails\Subscription\Constants;
+use Nails\Subscription\Exception\RenewalException\InstanceFailedToRenewException;
 use Nails\Subscription\Resource\Instance\CallbackData;
+use ReflectionException;
 
 /**
  * Class Paid
@@ -26,6 +31,11 @@ use Nails\Subscription\Resource\Instance\CallbackData;
  */
 class Paid extends Subscription
 {
+    /**
+     * Paid constructor.
+     *
+     * @throws ReflectionException
+     */
     public function __construct()
     {
         $this
@@ -38,6 +48,12 @@ class Paid extends Subscription
 
     /**
      * @param Invoice $oInvoice
+     *
+     * @throws ReflectionException
+     * @throws FactoryException
+     * @throws ModelException
+     * @throws NailsException
+     * @throws InstanceFailedToRenewException
      */
     public function execute(Invoice $oInvoice)
     {

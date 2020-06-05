@@ -12,6 +12,7 @@
 
 namespace Nails\Subscription;
 
+use Exception;
 use Nails\Common\Events\Base;
 use Nails\Common\Events\Subscription;
 use Nails\Subscription\Event\Listener;
@@ -60,7 +61,7 @@ class Events extends Base
     const RENEWAL_INSTANCE_FAILED_TO_RENEW = 'RENEWAL_INSTANCE_FAILED_TO_RENEW';
 
     /**
-     * Fired when an instance renewal is successfull
+     * Fired when an instance renewal is successful
      *
      * @param Resource\Instance $oInstance The new instance which was generated
      */
@@ -71,7 +72,7 @@ class Events extends Base
      *
      * @param Resource\Instance      $oOldInstance The instance being renewed (if available)
      * @param Resource\Instance|null $oNewInstance The new instance which was generated (if available)
-     * @param \Exception             $oException   The exception which was thrown
+     * @param Exception              $oException   The exception which was thrown
      */
     const RENEWAL_UNCAUGHT_EXCEPTION = 'RENEWAL_UNCAUGHT_EXCEPTION';
 

@@ -14,7 +14,6 @@
 namespace Nails\Database\Migration\Nails\ModuleSubscription;
 
 use Nails\Common\Console\Migrate\Base;
-use Nails\Common\Helper\Date;
 
 class Migration1 extends Base
 {
