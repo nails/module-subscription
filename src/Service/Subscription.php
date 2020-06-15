@@ -1439,7 +1439,7 @@ class Subscription
         } else {
             $aData = [
                 'is_automatic_renew'   => true,
-                'package_id'           => $oInstance->id,
+                'package_id'           => $oInstance->package_id,
                 'change_to_package_id' => $oNewPackage->id,
             ];
         }
