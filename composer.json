@@ -27,6 +27,7 @@
         "ext-json": "*",
         "nails/common": "dev-develop",
         "nails/module-currency": "dev-develop",
+        "nails/module-cron": "dev-develop",
         "nails/module-invoice": "dev-develop"
     },
     "require-dev": {
