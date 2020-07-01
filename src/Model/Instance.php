@@ -55,6 +55,8 @@ class Instance extends Base
     public function __construct()
     {
         parent::__construct();
+        $this->defaultSortColumn = 'created';
+        $this->defaultSortOrder  = 'DESC';
         $this
             ->addExpandableField([
                 'trigger'   => 'customer',
