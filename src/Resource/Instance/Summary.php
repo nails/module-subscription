@@ -78,6 +78,23 @@ class Summary extends Resource
     // --------------------------------------------------------------------------
 
     /**
+     * Returns details about the customer, used when rendering the summary message
+     *
+     * @return stdClass
+     * @throws FactoryException
+     * @throws ModelException
+     */
+    public function getCustomerDetails(): stdClass
+    {
+        return (object) [
+            'id'    => $this->oInstance->customer()->id,
+            'label' => $this->oInstance->customer()->label,
+        ];
+    }
+
+    // --------------------------------------------------------------------------
+
+    /**
      * Returns details about the subscription instance, used when rendering the summary message
      *
      * @return stdClass
@@ -290,6 +307,7 @@ class Summary extends Resource
         return $oMustache->render(
             $sMessage,
             [
+                'customer'   => $this->getCustomerDetails(),
                 'instance'   => $this->getInstanceDetails(),
                 'source'     => $this->getSourceDetails(),
                 'package'    => $this->getPackageDetails(),

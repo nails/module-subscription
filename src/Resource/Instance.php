@@ -327,14 +327,24 @@ class Instance extends Entity
     /**
      * Returns a summary of the subscription
      *
+     * @param bool $bThirdParty Whether the summary is being read by a third party or not
+     *
      * @return Instance\Summary
      * @throws FactoryException
      */
-    public function summary(): Subscription\Resource\Instance\Summary
+    public function summary(bool $bThirdParty = false): Subscription\Resource\Instance\Summary
     {
-        /** @var Subscription\Resource\Instance\Summary $oSummary */
-        $oSummary = Factory::resource('InstanceSummary', Subscription\Constants::MODULE_SLUG, ['oInstance' => $this]);
-        return $oSummary;
+        return $bThirdParty
+            ? Factory::resource(
+                'InstanceSummaryThirdParty',
+                Subscription\Constants::MODULE_SLUG,
+                ['oInstance' => $this]
+            )
+            : Factory::resource(
+                'InstanceSummaryThirdParty',
+                Subscription\Constants::MODULE_SLUG,
+                ['oInstance' => $this]
+            );
     }
 
     // --------------------------------------------------------------------------
