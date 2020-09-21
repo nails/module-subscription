@@ -22,4 +22,17 @@ use Nails\Email\Factory\Email;
 class WillNot extends Email
 {
     protected $sType = self::class;
+
+    // --------------------------------------------------------------------------
+
+    /**
+     * Returns test data to use when sending test emails
+     *
+     * @return array
+     */
+    public function getTestData(): array
+    {
+        //  @todo (Pablo 21/09/2020) - Add test data
+        return [];
+    }
 }
