@@ -10,6 +10,7 @@
  * @link        https://docs.nailsapp.co.uk/modules/subscription
  */
 
+use Nails\Subscription\Constants;
 use Nails\Subscription\Factory\Email;
 
 $config['email_types'] = [
@@ -22,6 +23,7 @@ $config['email_types'] = [
         'template_body'   => 'subscription/email/instance/cancelled',
         'template_footer' => '',
         'default_subject' => 'Your subscription has been cancelled',
+        'factory'         => Constants::MODULE_SLUG . '::EmailInstanceCancelled',
     ],
     (object) [
         'slug'            => Email\Instance\Created::class,
@@ -32,6 +34,7 @@ $config['email_types'] = [
         'template_body'   => 'subscription/email/instance/',
         'template_footer' => '',
         'default_subject' => 'Your subscription',
+        'factory'         => Constants::MODULE_SLUG . '::EmailInstanceCreated',
     ],
     (object) [
         'slug'            => Email\Instance\Modified::class,
@@ -42,6 +45,7 @@ $config['email_types'] = [
         'template_body'   => 'subscription/email/instance/modified',
         'template_footer' => '',
         'default_subject' => 'Your subscription has changed',
+        'factory'         => Constants::MODULE_SLUG . '::EmailInstanceModified',
     ],
     (object) [
         'slug'            => Email\Instance\Renew\Cannot::class,
@@ -52,6 +56,7 @@ $config['email_types'] = [
         'template_body'   => 'subscription/email/instance/renew/cannot',
         'template_footer' => '',
         'default_subject' => 'Your subscription failed to renew',
+        'factory'         => Constants::MODULE_SLUG . '::EmailInstanceRenewCannot',
     ],
     (object) [
         'slug'            => Email\Instance\Renew\Failed::class,
@@ -62,6 +67,7 @@ $config['email_types'] = [
         'template_body'   => 'subscription/email/instance/renew/failed',
         'template_footer' => '',
         'default_subject' => 'Your subscription failed to renew',
+        'factory'         => Constants::MODULE_SLUG . '::EmailInstanceRenewFailed',
     ],
     (object) [
         'slug'            => Email\Instance\Renew\FailedSca::class,
@@ -72,6 +78,7 @@ $config['email_types'] = [
         'template_body'   => 'subscription/email/instance/renew/failed_sca',
         'template_footer' => '',
         'default_subject' => 'Your subscription failed to renew',
+        'factory'         => Constants::MODULE_SLUG . '::EmailInstanceRenewFailedSca',
     ],
     (object) [
         'slug'            => Email\Instance\Renew\Ok::class,
@@ -82,6 +89,7 @@ $config['email_types'] = [
         'template_body'   => 'subscription/email/instance/renew/ok',
         'template_footer' => '',
         'default_subject' => 'Your subscription has renewed',
+        'factory'         => Constants::MODULE_SLUG . '::EmailInstanceRenewOk',
     ],
     (object) [
         'slug'            => Email\Instance\Renew\WillNot::class,
@@ -92,6 +100,7 @@ $config['email_types'] = [
         'template_body'   => 'subscription/email/instance/renew/will_not',
         'template_footer' => '',
         'default_subject' => 'Your subscription failed to renew',
+        'factory'         => Constants::MODULE_SLUG . '::EmailInstanceRenewWillNot',
     ],
     (object) [
         'slug'            => Email\Instance\Restored::class,
@@ -102,6 +111,7 @@ $config['email_types'] = [
         'template_body'   => 'subscription/email/instance/restored',
         'template_footer' => '',
         'default_subject' => 'Your subscription has been restored',
+        'factory'         => Constants::MODULE_SLUG . '::EmailInstanceRestored',
     ],
     (object) [
         'slug'            => Email\Instance\Swapped::class,
@@ -112,6 +122,7 @@ $config['email_types'] = [
         'template_body'   => 'subscription/email/instance/swapped',
         'template_footer' => '',
         'default_subject' => 'Your subscription has been changed',
+        'factory'         => Constants::MODULE_SLUG . '::EmailInstanceSwapped',
     ],
     (object) [
         'slug'            => Email\Instance\Terminated::class,
@@ -122,5 +133,6 @@ $config['email_types'] = [
         'template_body'   => 'subscription/email/instance/terminated',
         'template_footer' => '',
         'default_subject' => 'Your subscription has ended',
+        'factory'         => Constants::MODULE_SLUG . '::EmailInstanceTerminated',
     ],
 ];
