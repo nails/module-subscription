@@ -106,13 +106,15 @@ class CallbackData extends \Nails\Invoice\Factory\Invoice\Item\CallbackData impl
     /**
      * Returns the associated instance
      *
+     * @param bool $bSkipCache Whether to skip the cache when fetching the instance
+     *
      * @return Instance|null
      * @throws FactoryException
      * @throws ModelException
      */
     public function getInstance(bool $bSkipCache = false): ?Instance
     {
-        if (!$this->instance && $this->instance_id) {
+        if ((!$this->instance || $bSkipCache) && $this->instance_id) {
             /** @var \Nails\Subscription\Model\Instance $oModel */
             $oModel = Factory::model('Instance', Constants::MODULE_SLUG);
 

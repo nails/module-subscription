@@ -69,7 +69,7 @@ class Paid extends Subscription
                 $oCallbackData->setFromCallbackData($oItem->callback_data);
 
                 if ($oCallbackData->getType() === $oCallbackData::TYPE_RENEWAL) {
-                    $oSubscription->confirmRenewal($oCallbackData->getInstance());
+                    $oSubscription->confirmRenewal($oCallbackData->getInstance(true));
                 }
             }
         }
