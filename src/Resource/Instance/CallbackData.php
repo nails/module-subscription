@@ -110,11 +110,16 @@ class CallbackData extends \Nails\Invoice\Factory\Invoice\Item\CallbackData impl
      * @throws FactoryException
      * @throws ModelException
      */
-    public function getInstance(): ?Instance
+    public function getInstance(bool $bSkipCache = false): ?Instance
     {
         if (!$this->instance && $this->instance_id) {
             /** @var \Nails\Subscription\Model\Instance $oModel */
-            $oModel         = Factory::model('Instance', Constants::MODULE_SLUG);
+            $oModel = Factory::model('Instance', Constants::MODULE_SLUG);
+
+            if ($bSkipCache) {
+                $oModel->skipCache();
+            }
+
             $this->instance = $oModel->getById($this->instance_id);
         }
 
