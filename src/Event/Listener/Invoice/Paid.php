@@ -65,8 +65,12 @@ class Paid extends Subscription
         /** @var Invoice\Item $oItem */
         foreach ($oInvoice->items->data as $oItem) {
             if ($oItem->callback_data->identifier ?? null === $oCallbackData::IDENTIFIER) {
+
                 $oCallbackData->setFromCallbackData($oItem->callback_data);
-                $oSubscription->confirmRenewal($oCallbackData->getInstance());
+
+                if ($oCallbackData->getType() === $oCallbackData::TYPE_RENEWAL) {
+                    $oSubscription->confirmRenewal($oCallbackData->getInstance());
+                }
             }
         }
     }
