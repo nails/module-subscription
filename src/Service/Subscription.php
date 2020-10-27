@@ -679,7 +679,7 @@ class Subscription
         /** @var Invoice $oInvoiceBuilder */
         $oInvoiceBuilder = Factory::factory('Invoice', \Nails\Invoice\Constants::MODULE_SLUG);
         $oInvoice        = $oInvoiceBuilder
-            ->setCustomer($oInstance->customer())
+            ->setCustomerId($oInstance->customer())
             ->setCurrency($oInstance->currency)
             ->setDated($oInstance->date_subscription_start)
             ->addItem(
