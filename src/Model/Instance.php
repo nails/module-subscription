@@ -45,6 +45,20 @@ class Instance extends Base
      */
     const RESOURCE_PROVIDER = Constants::MODULE_SLUG;
 
+    /**
+     * The default column to sort on
+     *
+     * @var string|null
+     */
+    const DEFAULT_SORT_COLUMN = 'created';
+
+    /**
+     * The default sort order
+     *
+     * @var string
+     */
+    const DEFAULT_SORT_ORDER = self::SORT_DESC;
+
     // --------------------------------------------------------------------------
 
     /**
@@ -55,8 +69,6 @@ class Instance extends Base
     public function __construct()
     {
         parent::__construct();
-        $this->defaultSortColumn = 'created';
-        $this->defaultSortOrder  = 'DESC';
         $this
             ->addExpandableField([
                 'trigger'   => 'customer',
