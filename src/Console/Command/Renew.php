@@ -60,7 +60,7 @@ class Renew extends Base
     {
         parent::execute($oInput, $oOutput);
 
-        $this->banner('Subscription Renewals');
+        $this->banner('Subscription: Renewals');
 
         $sDate = $oInput->getOption('date');
         $oDate = new DateTime($sDate);
