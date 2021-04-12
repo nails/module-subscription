@@ -114,18 +114,4 @@ class Events extends Base
      * @param Resource\Instance $oTerminatedInstance The instance which was terminated
      */
     const INSTANCE_TERMINATED = 'INSTANCE_TERMINATED';
-
-    // --------------------------------------------------------------------------
-
-    /**
-     * Autoloads event listeners
-     *
-     * @return Subscription[]
-     */
-    public function autoload(): array
-    {
-        return [
-            new Listener\Invoice\Paid(),
-        ];
-    }
 }
