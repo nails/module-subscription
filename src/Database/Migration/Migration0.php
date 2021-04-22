@@ -11,7 +11,7 @@
  * @link
  */
 
-namespace Nails\Database\Migration\Nails\ModuleSubscription;
+namespace Nails\Subscription\Database\Migration;
 
 use Nails\Common\Console\Migrate\Base;
 use Nails\Common\Helper\Date;
