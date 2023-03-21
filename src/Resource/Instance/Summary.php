@@ -13,11 +13,11 @@
 namespace Nails\Subscription\Resource\Instance;
 
 use InvalidArgumentException;
-use Mustache_Engine;
 use Nails\Common\Exception\FactoryException;
 use Nails\Common\Exception\ModelException;
 use Nails\Common\Resource;
 use Nails\Common\Service\DateTime;
+use Nails\Common\Service\Mustache;
 use Nails\Currency\Resource\Currency;
 use Nails\Factory;
 use Nails\Subscription\Exception\SubscriptionException;
@@ -301,7 +301,7 @@ class Summary extends Resource
         $sMessage = implode(' ', $aMessage);
         $sMessage = str_replace(['<wrap>', '</wrap>'], [static::WRAP_OPEN, static::WRAP_CLOSE], $sMessage);
 
-        /** @var Mustache_Engine $oMustache */
+        /** @var Mustache $oMustache */
         $oMustache = Factory::service('Mustache');
 
         return $oMustache->render(
