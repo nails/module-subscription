@@ -2,6 +2,5 @@
 
 ![license](https://img.shields.io/badge/license-MIT-green.svg)
 [![CircleCI branch](https://img.shields.io/circleci/project/github/nails/module-subscription.svg)](https://circleci.com/gh/nails/module-subscription)
-[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/nails/module-subscription/badges/quality-score.png)](https://scrutinizer-ci.com/g/nails/module-subscription)
 
 This module brings subscription functionality to Nails.
