@@ -128,7 +128,7 @@ class Package extends Entity
      * @return bool
      * @throws FactoryException
      */
-    public function isActive(\DateTime $oWhen = null): bool
+    public function isActive(?\DateTime $oWhen = null): bool
     {
         /** @var \DateTime $oWhen */
         $oWhen = $oWhen ?? Factory::factory('DateTime');

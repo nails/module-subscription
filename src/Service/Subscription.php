@@ -81,10 +81,10 @@ class Subscription
      * @throws FactoryException
      */
     public function __construct(
-        Model\Instance $oInstanceModel = null,
-        \Nails\Invoice\Model\Invoice $oInvoiceModel = null,
-        Model\Log $oLogModel = null,
-        Logger $oLogger = null
+        ?Model\Instance $oInstanceModel = null,
+        ?\Nails\Invoice\Model\Invoice $oInvoiceModel = null,
+        ?Model\Log $oLogModel = null,
+        ?Logger $oLogger = null
     ) {
         $this->oInstanceModel = $oInstanceModel ?? Factory::model('Instance', Constants::MODULE_SLUG);
         $this->oInvoiceModel  = $oInvoiceModel ?? Factory::model('Invoice', \Nails\Invoice\Constants::MODULE_SLUG);
@@ -206,7 +206,7 @@ class Subscription
         bool $bCustomerPresent,
         string $sSuccessUrl = '',
         string $sErrorUrl = '',
-        DateTime $oStart = null
+        ?DateTime $oStart = null
     ): Instance {
 
         /** @var DateTime $oStart */
@@ -568,7 +568,7 @@ class Subscription
         DateTime $oSubscriptionEnd,
         DateTime $oCoolingOffStart,
         DateTime $oCoolingOffEnd,
-        Instance $oPreviousInstance = null
+        ?Instance $oPreviousInstance = null
     ): Instance {
 
         $this->log('Creating new instance:');
@@ -1511,7 +1511,7 @@ class Subscription
      * @throws FactoryException
      * @throws ModelException
      */
-    public function isSubscribed(Customer $oCustomer, DateTime $oWhen = null): bool
+    public function isSubscribed(Customer $oCustomer, ?DateTime $oWhen = null): bool
     {
         $oInstance = $this->get($oCustomer, $oWhen);
         if (empty($oInstance)) {
@@ -1543,7 +1543,7 @@ class Subscription
      * @throws FactoryException
      * @throws ModelException
      */
-    public function get(Customer $oCustomer, DateTime $oWhen = null): ?Instance
+    public function get(Customer $oCustomer, ?DateTime $oWhen = null): ?Instance
     {
         /** @var DateTime $oWhen */
         $oWhen = $oWhen ?? Factory::factory('DateTime');
@@ -1575,7 +1575,7 @@ class Subscription
      * @throws FactoryException
      * @throws ModelException
      */
-    public function getRenewals(DateTime $oWhen = null, bool $bOnlyDueToRenew = false): array
+    public function getRenewals(?DateTime $oWhen = null, bool $bOnlyDueToRenew = false): array
     {
         /** @var DateTime $oWhen */
         $oWhen = $oWhen ?? Factory::factory('DateTime');
