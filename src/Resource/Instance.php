@@ -221,7 +221,7 @@ class Instance extends Entity
      * @return bool
      * @throws FactoryException
      */
-    public function isInFreeTrial(\DateTime $oWhen = null): bool
+    public function isInFreeTrial(?\DateTime $oWhen = null): bool
     {
         return $this->isInPeriod($oWhen, 'free_trial');
     }
@@ -236,7 +236,7 @@ class Instance extends Entity
      * @return bool
      * @throws FactoryException
      */
-    public function isActive(\DateTime $oWhen = null)
+    public function isActive(?\DateTime $oWhen = null)
     {
         return $this->isInPeriod($oWhen, 'subscription');
     }
@@ -251,7 +251,7 @@ class Instance extends Entity
      * @return bool
      * @throws FactoryException
      */
-    public function isCoolingOff(\DateTime $oWhen = null)
+    public function isCoolingOff(?\DateTime $oWhen = null)
     {
         return $this->isInPeriod($oWhen, 'cooling_off');
     }
