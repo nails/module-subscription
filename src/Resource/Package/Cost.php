@@ -13,10 +13,12 @@
 namespace Nails\Subscription\Resource\Package;
 
 use Nails\Common\Exception\FactoryException;
+use Nails\Common\Model\Base;
 use Nails\Common\Resource\Entity;
 use Nails\Currency;
 use Nails\Factory;
 use Nails\Subscription\Resource;
+use stdClass;
 
 /**
  * Class Cost
@@ -51,14 +53,12 @@ class Cost extends Entity
     /**
      * Cost constructor.
      *
-     * @param array $mObj
-     *
      * @throws Currency\Exception\CurrencyException
      * @throws FactoryException
      */
-    public function __construct($mObj = [])
+    public function __construct(self|stdClass|array $resource = [], ?Base $model = null)
     {
-        parent::__construct($mObj);
+        parent::__construct($resource, $model);
 
         /** @var Currency\Service\Currency $oCurrency */
         $oCurrency = Factory::service('Currency', Currency\Constants::MODULE_SLUG);
