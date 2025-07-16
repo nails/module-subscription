@@ -125,53 +125,56 @@ return [
         },
     ],
     'resources' => [
-        'Instance'                  => function ($mObj): Resource\Instance {
+        'Instance'                  => function ($resource, $model): Resource\Instance {
             if (class_exists('\App\Subscription\Resource\Instance')) {
-                return new \App\Subscription\Resource\Instance($mObj);
+                return new \App\Subscription\Resource\Instance($resource, $model);
             } else {
-                return new Resource\Instance($mObj);
+                return new Resource\Instance($resource, $model);
             }
         },
-        'InstanceCallbackData'      => function (): Resource\Instance\CallbackData {
+        'InstanceCallbackData'      => function ($resource, $model = null): Resource\Instance\CallbackData {
+            //  @todo (Pablo 2025-07-15) - this should be a factory
             if (class_exists('\App\Subscription\Resource\Instance\CallbackData')) {
                 return new \App\Subscription\Resource\Instance\CallbackData();
             } else {
                 return new Resource\Instance\CallbackData();
             }
         },
-        'InstanceSummary'           => function ($mObj): Resource\Instance\Summary {
+        'InstanceSummary'           => function ($resource, $model = null): Resource\Instance\Summary {
+            //  @todo (Pablo 2025-07-15) - this should be a factory
             if (class_exists('\App\Subscription\Resource\Instance\Summary')) {
-                return new \App\Subscription\Resource\Instance\Summary($mObj);
+                return new \App\Subscription\Resource\Instance\Summary($resource);
             } else {
-                return new Resource\Instance\Summary($mObj);
+                return new Resource\Instance\Summary($resource);
             }
         },
-        'InstanceSummaryThirdParty' => function ($mObj): Resource\Instance\Summary\ThirdParty {
+        'InstanceSummaryThirdParty' => function ($resource, $model = null): Resource\Instance\Summary\ThirdParty {
+            //  @todo (Pablo 2025-07-15) - this should be a factory
             if (class_exists('\App\Subscription\Resource\Instance\Summary\ThirdParty')) {
-                return new \App\Subscription\Resource\Instance\Summary\ThirdParty($mObj);
+                return new \App\Subscription\Resource\Instance\Summary\ThirdParty($resource);
             } else {
-                return new Resource\Instance\Summary\ThirdParty($mObj);
+                return new Resource\Instance\Summary\ThirdParty($resource);
             }
         },
-        'Log'                       => function ($mObj): Resource\Log {
+        'Log'                       => function ($resource, $model): Resource\Log {
             if (class_exists('\App\Subscription\Resource\Log')) {
-                return new \App\Subscription\Resource\Log($mObj);
+                return new \App\Subscription\Resource\Log($resource, $model);
             } else {
-                return new Resource\Log($mObj);
+                return new Resource\Log($resource, $model);
             }
         },
-        'Package'                   => function ($mObj): Resource\Package {
+        'Package'                   => function ($resource, $model): Resource\Package {
             if (class_exists('\App\Subscription\Resource\Package')) {
-                return new \App\Subscription\Resource\Package($mObj);
+                return new \App\Subscription\Resource\Package($resource, $model);
             } else {
-                return new Resource\Package($mObj);
+                return new Resource\Package($resource, $model);
             }
         },
-        'PackageCost'               => function ($mObj): Resource\Package\Cost {
+        'PackageCost'               => function ($resource, $model): Resource\Package\Cost {
             if (class_exists('\App\Subscription\Resource\Package\Cost')) {
-                return new \App\Subscription\Resource\Package\Cost($mObj);
+                return new \App\Subscription\Resource\Package\Cost($resource, $model);
             } else {
-                return new Resource\Package\Cost($mObj);
+                return new Resource\Package\Cost($resource, $model);
             }
         },
     ],
