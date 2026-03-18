@@ -16,7 +16,7 @@ use Nails\Common\Exception\FactoryException;
 use Nails\Common\Exception\ModelException;
 use Nails\Common\Resource\DateTime;
 use Nails\Common\Resource\Entity;
-use Nails\Common\Resource\ExpandableField;
+use Nails\Common\Resource\ExpandableFieldData;
 use Nails\Currency\Resource\Currency;
 use Nails\Factory;
 use Nails\Subscription;
@@ -61,7 +61,7 @@ class Package extends Entity
     /** @var bool */
     public $supports_automatic_renew;
 
-    /** @var ExpandableField */
+    /** @var ExpandableFieldData */
     public $costs;
 
     // --------------------------------------------------------------------------
@@ -69,15 +69,15 @@ class Package extends Entity
     /**
      * Returns the package's costs
      *
-     * @return ExpandableField
+     * @return ExpandableFieldData
      * @throws FactoryException
      * @throws ModelException
      */
-    public function costs(): ExpandableField
+    public function costs(): ExpandableFieldData
     {
         if (!$this->costs) {
 
-            $this->costs = new ExpandableField();
+            $this->costs = new ExpandableFieldData();
 
             /** @var Subscription\Model\Package\Cost $oModel */
             $oModel            = Factory::model('PackageCost', Subscription\Constants::MODULE_SLUG);
